@@ -309,7 +309,7 @@ func (pv *ProjectView) Create(s *xorm.Session, a web.Auth) (err error) {
 	return createProjectView(s, pv, a, true, true)
 }
 
-func createProjectView(s *xorm.Session, p *ProjectView, a web.Auth, createBacklogBucket bool, addExistingTasksToView bool) (err error) {
+func validateProjectViewFilters(p *ProjectView) (err error) {
 	if p.Filter != nil && p.Filter.Filter != "" {
 		_, err = getTaskFiltersFromFilterString(p.Filter.Filter, p.Filter.FilterTimezone)
 		if err != nil {
@@ -331,6 +331,15 @@ func createProjectView(s *xorm.Session, p *ProjectView, a web.Auth, createBacklo
 		}
 	}
 
+	return
+}
+
+func createProjectView(s *xorm.Session, p *ProjectView, a web.Auth, createBacklogBucket bool, addExistingTasksToView bool) (err error) {
+	err = validateProjectViewFilters(p)
+	if err != nil {
+		return
+	}
+
 	p.ID = 0
 	_, err = s.Insert(p)
 	if err != nil {
@@ -344,56 +353,62 @@ func createProjectView(s *xorm.Session, p *ProjectView, a web.Auth, createBacklo
 	}
 
 	if p.ViewKind == ProjectViewKindKanban && createBacklogBucket && p.BucketConfigurationMode == BucketConfigurationModeManual {
-		// Create default buckets for kanban view
-		backlog := &Bucket{
-			ProjectViewID: p.ID,
-			Title:         "To-Do",
-			Position:      100,
-		}
-		err = backlog.Create(s, a)
+		err = createDefaultKanbanBuckets(s, a, p, addExistingTasksToView)
 		if err != nil {
 			return
-		}
-
-		doing := &Bucket{
-			ProjectViewID: p.ID,
-			Title:         "Doing",
-			Position:      200,
-		}
-		err = doing.Create(s, a)
-		if err != nil {
-			return
-		}
-
-		done := &Bucket{
-			ProjectViewID: p.ID,
-			Title:         "Done",
-			Position:      300,
-		}
-		err = done.Create(s, a)
-		if err != nil {
-			return
-		}
-
-		// Set Backlog as default bucket and Done as done bucket
-		p.DefaultBucketID = backlog.ID
-		p.DoneBucketID = done.ID
-		_, err = s.ID(p.ID).Cols("default_bucket_id", "done_bucket_id").Update(p)
-		if err != nil {
-			return
-		}
-
-		// Move all tasks into the new bucket when the project already has tasks
-		if addExistingTasksToView {
-			err = addTasksToView(s, a, p, backlog)
-			if err != nil {
-				return
-			}
 		}
 	}
 
 	if addExistingTasksToView {
 		return RecalculateTaskPositions(s, p, a)
+	}
+
+	return
+}
+
+func createDefaultKanbanBuckets(s *xorm.Session, a web.Auth, p *ProjectView, addExistingTasksToView bool) (err error) {
+	backlog := &Bucket{
+		ProjectViewID: p.ID,
+		Title:         "To-Do",
+		Position:      100,
+	}
+	err = backlog.Create(s, a)
+	if err != nil {
+		return
+	}
+
+	doing := &Bucket{
+		ProjectViewID: p.ID,
+		Title:         "Doing",
+		Position:      200,
+	}
+	err = doing.Create(s, a)
+	if err != nil {
+		return
+	}
+
+	done := &Bucket{
+		ProjectViewID: p.ID,
+		Title:         "Done",
+		Position:      300,
+	}
+	err = done.Create(s, a)
+	if err != nil {
+		return
+	}
+
+	p.DefaultBucketID = backlog.ID
+	p.DoneBucketID = done.ID
+	_, err = s.ID(p.ID).Cols("default_bucket_id", "done_bucket_id").Update(p)
+	if err != nil {
+		return
+	}
+
+	if addExistingTasksToView {
+		err = addTasksToView(s, a, p, backlog)
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -440,18 +455,24 @@ func addTasksToView(s *xorm.Session, a web.Auth, pv *ProjectView, b *Bucket) (er
 // @Failure 400 {object} web.HTTPError "Invalid project view object provided."
 // @Failure 500 {object} models.Message "Internal error"
 // @Router /projects/{project}/views/{id} [post]
-func (pv *ProjectView) Update(s *xorm.Session, _ web.Auth) (err error) {
-	if pv.Filter != nil && pv.Filter.Filter != "" {
-		_, err = getTaskFiltersFromFilterString(pv.Filter.Filter, pv.Filter.FilterTimezone)
-		if err != nil {
-			return
-		}
-	}
-
-	// Check if the project view exists
-	_, err = GetProjectViewByIDAndProject(s, pv.ID, pv.ProjectID)
+func (pv *ProjectView) Update(s *xorm.Session, a web.Auth) (err error) {
+	err = validateProjectViewFilters(pv)
 	if err != nil {
 		return
+	}
+
+	oldView, err := GetProjectViewByIDAndProject(s, pv.ID, pv.ProjectID)
+	if err != nil {
+		return
+	}
+
+	// A kanban view without a bucket configuration mode would render broken,
+	// see https://github.com/go-vikunja/vikunja/issues/3386
+	if pv.ViewKind == ProjectViewKindKanban && pv.BucketConfigurationMode == BucketConfigurationModeNone {
+		pv.BucketConfigurationMode = BucketConfigurationModeManual
+	}
+	if pv.ViewKind != ProjectViewKindKanban {
+		pv.BucketConfigurationMode = BucketConfigurationModeNone
 	}
 
 	_, err = s.
@@ -467,7 +488,28 @@ func (pv *ProjectView) Update(s *xorm.Session, _ web.Auth) (err error) {
 			"done_bucket_id",
 		).
 		Update(pv)
-	return
+	if err != nil {
+		return
+	}
+
+	becameManualKanban := pv.ViewKind == ProjectViewKindKanban &&
+		pv.BucketConfigurationMode == BucketConfigurationModeManual &&
+		(oldView.ViewKind != ProjectViewKindKanban || oldView.BucketConfigurationMode != BucketConfigurationModeManual)
+	if !becameManualKanban {
+		return
+	}
+
+	// Buckets survive switching the view kind away from kanban and back, only
+	// seed defaults when there are none to avoid duplicates.
+	hasBuckets, err := s.Where("project_view_id = ?", pv.ID).Exist(&Bucket{})
+	if err != nil {
+		return
+	}
+	if hasBuckets {
+		return
+	}
+
+	return createDefaultKanbanBuckets(s, a, pv, true)
 }
 
 func GetProjectViewByIDAndProject(s *xorm.Session, viewID, projectID int64) (view *ProjectView, err error) {
