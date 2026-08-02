@@ -74,8 +74,6 @@ func init() {
 	})
 }
 
-// Kanban views with mode "none" (0) exist when a view of a different kind was
-// switched to kanban, see https://github.com/go-vikunja/vikunja/issues/3386
 func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 	brokenViews := []*projectView20260802162816{}
 	err := tx.Where(builder.Eq{"view_kind": 3, "bucket_configuration_mode": 0}).Find(&brokenViews)
@@ -117,6 +115,16 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 			view.DefaultBucketID = todo.ID
 			view.DoneBucketID = done.ID
 			targetBucket = todo
+
+			// Persisted before task backfill so a crash before the final write
+			// still leaves a re-run finding these buckets via the existing-buckets branch.
+			_, err = tx.
+				Where(builder.Eq{"id": view.ID}).
+				Cols("default_bucket_id", "done_bucket_id").
+				Update(view)
+			if err != nil {
+				return err
+			}
 		} else {
 			targetBucket = buckets[0]
 			for _, b := range buckets {
@@ -136,7 +144,7 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 			taskIDs := []int64{}
 			err = tx.Table("tasks").
 				Where(builder.Eq{"project_id": view.ProjectID}).
-				And(builder.IsNull{"deleted"}).
+				And(builder.IsNull{"deleted_at"}).
 				And(builder.NotIn("id", builder.
 					Select("task_id").
 					From("task_buckets").
