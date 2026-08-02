@@ -18,6 +18,7 @@ package migration
 
 import (
 	"testing"
+	"time"
 
 	"code.vikunja.io/api/pkg/db"
 
@@ -26,8 +27,9 @@ import (
 )
 
 type tasksFor20260802162816 struct {
-	ID        int64 `xorm:"bigint autoincr not null unique pk"`
-	ProjectID int64 `xorm:"bigint not null"`
+	ID        int64      `xorm:"bigint autoincr not null unique pk"`
+	ProjectID int64      `xorm:"bigint not null"`
+	Deleted   *time.Time `xorm:"datetime null deleted"`
 }
 
 func (tasksFor20260802162816) TableName() string {
@@ -43,6 +45,15 @@ func (projectsFor20260802162816) TableName() string {
 	return "projects"
 }
 
+type savedFiltersFor20260802162816 struct {
+	ID      int64 `xorm:"bigint autoincr not null unique pk"`
+	OwnerID int64 `xorm:"bigint not null"`
+}
+
+func (savedFiltersFor20260802162816) TableName() string {
+	return "saved_filters"
+}
+
 func TestRepairKanbanViews20260802162816(t *testing.T) {
 	x, err := db.CreateTestEngine()
 	require.NoError(t, err)
@@ -53,8 +64,11 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 		taskBucket20260802162816{},
 		tasksFor20260802162816{},
 		projectsFor20260802162816{},
+		savedFiltersFor20260802162816{},
 	}
 	// x is the process-global test engine; these tables would leak into other tests.
+	// The shared-name tables (projects, tasks, saved_filters) only ever exist here
+	// as minimal stubs recreated below, so dropping them is safe.
 	t.Cleanup(func() {
 		require.NoError(t, x.DropTables(tables...))
 	})
@@ -65,6 +79,7 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 		&projectsFor20260802162816{ID: 1, OwnerID: 42},
 		&tasksFor20260802162816{ID: 1, ProjectID: 1},
 		&tasksFor20260802162816{ID: 2, ProjectID: 1},
+		&tasksFor20260802162816{ID: 3, ProjectID: 1},
 		// Broken: kanban (3) with mode none (0)
 		&projectView20260802162816{ID: 1, ProjectID: 1, ViewKind: 3, BucketConfigurationMode: 0},
 		// Healthy kanban view, must stay untouched
@@ -74,7 +89,17 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 		// Broken view which still has a bucket: keep it, only fix the mode
 		&projectView20260802162816{ID: 4, ProjectID: 1, ViewKind: 3, BucketConfigurationMode: 0},
 		&bucket20260802162816{ID: 200, Title: "Existing", ProjectViewID: 4, Position: 1, CreatedByID: 42},
+		// Broken saved filter view: owner comes from saved_filters, no task placement
+		&savedFiltersFor20260802162816{ID: 1, OwnerID: 7},
+		&projectView20260802162816{ID: 5, ProjectID: -2, ViewKind: 3, BucketConfigurationMode: 0},
+		// Broken view whose project no longer exists, must be left alone
+		&projectView20260802162816{ID: 6, ProjectID: 99, ViewKind: 3, BucketConfigurationMode: 0},
 	)
+	require.NoError(t, err)
+
+	// xorm skips "deleted"-tagged columns on Insert, so soft-delete via an Unscoped Update instead.
+	deletedAt := time.Now()
+	_, err = x.Table("tasks").ID(int64(3)).Unscoped().Cols("deleted").Update(&tasksFor20260802162816{Deleted: &deletedAt})
 	require.NoError(t, err)
 
 	require.NoError(t, repairKanbanViews20260802162816(x))
@@ -98,6 +123,7 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 	require.Len(t, taskBuckets, 2)
 	for _, tb := range taskBuckets {
 		require.Equal(t, repaired.DefaultBucketID, tb.BucketID)
+		require.NotEqual(t, int64(3), tb.TaskID, "soft-deleted task must not be backfilled into a bucket")
 	}
 
 	healthy := &projectView20260802162816{}
@@ -117,7 +143,9 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 	_, err = x.Where(builder.Eq{"id": 4}).Get(withBucket)
 	require.NoError(t, err)
 	require.Equal(t, 1, withBucket.BucketConfigurationMode)
-	require.Equal(t, int64(0), withBucket.DefaultBucketID)
+	// Default heals to the bucket the tasks were backfilled into
+	require.Equal(t, int64(200), withBucket.DefaultBucketID)
+	require.Equal(t, int64(0), withBucket.DoneBucketID)
 	existingBuckets := []*bucket20260802162816{}
 	require.NoError(t, x.Where(builder.Eq{"project_view_id": 4}).Find(&existingBuckets))
 	require.Len(t, existingBuckets, 1)
@@ -127,6 +155,34 @@ func TestRepairKanbanViews20260802162816(t *testing.T) {
 	for _, tb := range existingTaskBuckets {
 		require.Equal(t, int64(200), tb.BucketID)
 	}
+
+	savedFilterView := &projectView20260802162816{}
+	_, err = x.Where(builder.Eq{"id": 5}).Get(savedFilterView)
+	require.NoError(t, err)
+	require.Equal(t, 1, savedFilterView.BucketConfigurationMode)
+	filterBuckets := []*bucket20260802162816{}
+	require.NoError(t, x.Where(builder.Eq{"project_view_id": 5}).OrderBy("position, id").Find(&filterBuckets))
+	require.Len(t, filterBuckets, 3)
+	for _, b := range filterBuckets {
+		require.Equal(t, int64(7), b.CreatedByID)
+	}
+	require.Equal(t, filterBuckets[0].ID, savedFilterView.DefaultBucketID)
+	require.Equal(t, filterBuckets[2].ID, savedFilterView.DoneBucketID)
+	filterTaskBucketCount, err := x.Where(builder.Eq{"project_view_id": 5}).Count(&taskBucket20260802162816{})
+	require.NoError(t, err)
+	require.Zero(t, filterTaskBucketCount)
+
+	orphan := &projectView20260802162816{}
+	_, err = x.Where(builder.Eq{"id": 6}).Get(orphan)
+	require.NoError(t, err)
+	require.Equal(t, 0, orphan.BucketConfigurationMode)
+	require.Zero(t, orphan.DefaultBucketID)
+	orphanBucketCount, err := x.Where(builder.Eq{"project_view_id": 6}).Count(&bucket20260802162816{})
+	require.NoError(t, err)
+	require.Zero(t, orphanBucketCount)
+	danglingBucketCount, err := x.Where(builder.Eq{"created_by_id": 0}).Count(&bucket20260802162816{})
+	require.NoError(t, err)
+	require.Zero(t, danglingBucketCount)
 
 	// Idempotent
 	require.NoError(t, repairKanbanViews20260802162816(x))

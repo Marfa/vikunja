@@ -53,13 +53,15 @@ func (bucket20260802162816) TableName() string {
 
 type taskBucket20260802162816 struct {
 	BucketID      int64 `xorm:"bigint not null index"`
-	TaskID        int64 `xorm:"bigint not null index"`
-	ProjectViewID int64 `xorm:"bigint not null index"`
+	TaskID        int64 `xorm:"bigint not null index unique(task_view)"`
+	ProjectViewID int64 `xorm:"bigint not null index unique(task_view)"`
 }
 
 func (taskBucket20260802162816) TableName() string {
 	return "task_buckets"
 }
+
+const taskBucketInsertBatch20260802162816 = 200
 
 func init() {
 	migrations = append(migrations, &xormigrate.Migration{
@@ -86,16 +88,21 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 		view.BucketConfigurationMode = 1
 
 		buckets := []*bucket20260802162816{}
-		err = tx.Where(builder.Eq{"project_view_id": view.ID}).OrderBy("position").Find(&buckets)
+		err = tx.Where(builder.Eq{"project_view_id": view.ID}).OrderBy("position, id").Find(&buckets)
 		if err != nil {
 			return err
 		}
 
 		var targetBucket *bucket20260802162816
 		if len(buckets) == 0 {
-			ownerID, err := getOwnerIDForProject20260802162816(tx, view.ProjectID)
+			ownerID, found, err := getOwnerIDForProject20260802162816(tx, view.ProjectID)
 			if err != nil {
 				return err
+			}
+			// No owner means the project or saved filter is gone - creating
+			// buckets would dangle created_by_id at 0.
+			if !found {
+				continue
 			}
 
 			todo := &bucket20260802162816{Title: "To-Do", ProjectViewID: view.ID, Position: 100, CreatedByID: ownerID}
@@ -117,8 +124,48 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 					targetBucket = b
 				}
 			}
+			// Point the default at where the tasks actually land. DoneBucketID
+			// is left alone, designating an arbitrary bucket as done would mark
+			// tasks done.
+			view.DefaultBucketID = targetBucket.ID
 		}
 
+		// Saved filter views (negative project id) get their tasks placed by
+		// the filter cron and task listeners instead.
+		if view.ProjectID > 0 {
+			taskIDs := []int64{}
+			err = tx.Table("tasks").
+				Where(builder.Eq{"project_id": view.ProjectID}).
+				And(builder.IsNull{"deleted"}).
+				And(builder.NotIn("id", builder.
+					Select("task_id").
+					From("task_buckets").
+					Where(builder.Eq{"project_view_id": view.ID}))).
+				Cols("id").
+				Find(&taskIDs)
+			if err != nil {
+				return err
+			}
+
+			taskBuckets := []*taskBucket20260802162816{}
+			for _, taskID := range taskIDs {
+				taskBuckets = append(taskBuckets, &taskBucket20260802162816{
+					BucketID:      targetBucket.ID,
+					TaskID:        taskID,
+					ProjectViewID: view.ID,
+				})
+			}
+			for i := 0; i < len(taskBuckets); i += taskBucketInsertBatch20260802162816 {
+				end := min(i+taskBucketInsertBatch20260802162816, len(taskBuckets))
+				if _, err := tx.Insert(taskBuckets[i:end]); err != nil {
+					return err
+				}
+			}
+		}
+
+		// Must be the last write for this view: the migration runs without an
+		// enclosing transaction and the mode flip is what excludes the view
+		// from a re-run, so an interrupted run stays resumable.
 		_, err = tx.
 			Where(builder.Eq{"id": view.ID}).
 			Cols("bucket_configuration_mode", "default_bucket_id", "done_bucket_id").
@@ -126,53 +173,17 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 		if err != nil {
 			return err
 		}
-
-		// Saved filter views (negative project id) get their tasks placed by
-		// the filter cron and task listeners instead.
-		if view.ProjectID <= 0 {
-			continue
-		}
-
-		taskIDs := []int64{}
-		err = tx.Table("tasks").
-			Where(builder.Eq{"project_id": view.ProjectID}).
-			And(builder.NotIn("id", builder.
-				Select("task_id").
-				From("task_buckets").
-				Where(builder.Eq{"project_view_id": view.ID}))).
-			Cols("id").
-			Find(&taskIDs)
-		if err != nil {
-			return err
-		}
-
-		taskBuckets := []*taskBucket20260802162816{}
-		for _, taskID := range taskIDs {
-			taskBuckets = append(taskBuckets, &taskBucket20260802162816{
-				BucketID:      targetBucket.ID,
-				TaskID:        taskID,
-				ProjectViewID: view.ID,
-			})
-		}
-		for i := 0; i < len(taskBuckets); i += 200 {
-			end := min(i+200, len(taskBuckets))
-			if _, err := tx.Insert(taskBuckets[i:end]); err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
 }
 
-func getOwnerIDForProject20260802162816(tx *xorm.Engine, projectID int64) (int64, error) {
-	var ownerID int64
-	var err error
+func getOwnerIDForProject20260802162816(tx *xorm.Engine, projectID int64) (ownerID int64, found bool, err error) {
 	if projectID > 0 {
-		_, err = tx.Table("projects").Where("id = ?", projectID).Cols("owner_id").Get(&ownerID)
+		found, err = tx.Table("projects").Where(builder.Eq{"id": projectID}).Cols("owner_id").Get(&ownerID)
 	} else {
 		filterID := projectID*-1 - 1
-		_, err = tx.Table("saved_filters").Where("id = ?", filterID).Cols("owner_id").Get(&ownerID)
+		found, err = tx.Table("saved_filters").Where(builder.Eq{"id": filterID}).Cols("owner_id").Get(&ownerID)
 	}
-	return ownerID, err
+	return ownerID, found, err
 }
