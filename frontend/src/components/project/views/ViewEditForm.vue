@@ -85,9 +85,7 @@ onBeforeMount(() => {
 		view.value = transformed
 	}
 
-	// immediate: true covers both the initial load (kanban view stored with legacy mode
-	// 'none') and later kind changes. Registered here, after view.value is assigned
-	// above, so the immediate run already sees the loaded view.
+	// Registered after view.value is set above, so the immediate run sees the loaded view.
 	watch(() => view.value?.viewKind, kind => {
 		if (kind === 'kanban' && view.value?.bucketConfigurationMode === 'none') {
 			view.value.bucketConfigurationMode = 'manual'
