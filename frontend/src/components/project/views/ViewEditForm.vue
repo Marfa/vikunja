@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onBeforeMount, ref} from 'vue'
+import {onBeforeMount, ref, watch} from 'vue'
 
 import type {IProjectView} from '@/modelTypes/IProjectView'
 import type {IFilters} from '@/modelTypes/ISavedFilter'
@@ -83,6 +83,13 @@ onBeforeMount(() => {
 
 	if (JSON.stringify(view.value) !== JSON.stringify(transformed)) {
 		view.value = transformed
+	}
+})
+
+// A view switched to kanban still has mode 'none', which neither radio matches
+watch(() => view.value?.viewKind, kind => {
+	if (kind === 'kanban' && view.value?.bucketConfigurationMode === 'none') {
+		view.value.bucketConfigurationMode = 'manual'
 	}
 })
 
