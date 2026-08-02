@@ -40,7 +40,7 @@ onBeforeMount(() => {
 			labelId => labelStore.getLabelById(labelId)?.title || null,
 			projectId => projectStore.projects[projectId]?.title || null,
 		)
-		
+
 		const filter: IFilters = {
 			filter: '',
 			s: '',
@@ -50,11 +50,11 @@ onBeforeMount(() => {
 		} else {
 			filter.s = filterString
 		}
-		
+
 		if (filter.s === '') {
 			filter.s = filterInput.s
 		}
-		
+
 		if (filter.filter === '') {
 			filter.filter = filter.s
 		}
@@ -81,21 +81,18 @@ onBeforeMount(() => {
 		})),
 	}
 
-	// A kanban view stored with mode 'none' (legacy data) has no matching radio
-	if (transformed.viewKind === 'kanban' && transformed.bucketConfigurationMode === 'none') {
-		transformed.bucketConfigurationMode = 'manual'
-	}
-
 	if (JSON.stringify(view.value) !== JSON.stringify(transformed)) {
 		view.value = transformed
 	}
-})
 
-// A view switched to kanban still has mode 'none', which neither radio matches
-watch(() => view.value?.viewKind, kind => {
-	if (kind === 'kanban' && view.value?.bucketConfigurationMode === 'none') {
-		view.value.bucketConfigurationMode = 'manual'
-	}
+	// immediate: true covers both the initial load (kanban view stored with legacy mode
+	// 'none') and later kind changes. Registered here, after view.value is assigned
+	// above, so the immediate run already sees the loaded view.
+	watch(() => view.value?.viewKind, kind => {
+		if (kind === 'kanban' && view.value?.bucketConfigurationMode === 'none') {
+			view.value.bucketConfigurationMode = 'manual'
+		}
+	}, {immediate: true})
 })
 
 function save() {
