@@ -98,8 +98,6 @@ async function deleteView(viewId: number) {
 async function saveView(view: IProjectView) {
 	if (view?.viewKind !== 'kanban') {
 		view.bucketConfigurationMode = 'none'
-	} else if (view.bucketConfigurationMode === 'none') {
-		view.bucketConfigurationMode = 'manual'
 	}
 	const result = await projectViewService.update(view)
 	projectStore.setProjectView(result)

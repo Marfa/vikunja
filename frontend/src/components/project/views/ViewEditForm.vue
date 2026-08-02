@@ -81,6 +81,11 @@ onBeforeMount(() => {
 		})),
 	}
 
+	// A kanban view stored with mode 'none' (legacy data) has no matching radio
+	if (transformed.viewKind === 'kanban' && transformed.bucketConfigurationMode === 'none') {
+		transformed.bucketConfigurationMode = 'manual'
+	}
+
 	if (JSON.stringify(view.value) !== JSON.stringify(transformed)) {
 		view.value = transformed
 	}
