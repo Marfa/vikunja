@@ -164,6 +164,35 @@ func TestProjectView_Update(t *testing.T) {
 		}, false)
 	})
 
+	t.Run("echoed id of a deleted bucket is reset instead of rejected", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		doneBucket := &Bucket{ID: 3, ProjectViewID: 4, ProjectID: 1}
+		require.NoError(t, doneBucket.Delete(s, u))
+
+		view := &ProjectView{
+			ID:                      4,
+			ProjectID:               1,
+			Title:                   "Kanban renamed",
+			ViewKind:                ProjectViewKindKanban,
+			BucketConfigurationMode: BucketConfigurationModeManual,
+			DefaultBucketID:         1,
+			DoneBucketID:            3,
+		}
+		require.NoError(t, view.Update(s, u))
+		require.NoError(t, s.Commit())
+
+		assert.Zero(t, view.DoneBucketID)
+		db.AssertExists(t, "project_views", map[string]interface{}{
+			"id":                4,
+			"title":             "Kanban renamed",
+			"default_bucket_id": 1,
+			"done_bucket_id":    0,
+		}, false)
+	})
+
 	t.Run("omitted bucket configuration mode keeps the stored one", func(t *testing.T) {
 		db.LoadAndAssertFixtures(t)
 		s := db.NewSession()
@@ -196,6 +225,46 @@ func TestProjectView_Update(t *testing.T) {
 		bucketCount, err := s2.Where("project_view_id = ?", view.ID).Count(&Bucket{})
 		require.NoError(t, err)
 		assert.Zero(t, bucketCount)
+	})
+
+	t.Run("partial update keeps the stored bucket configuration", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		view := &ProjectView{
+			ID:                      1,
+			ProjectID:               1,
+			Title:                   "List",
+			ViewKind:                ProjectViewKindKanban,
+			BucketConfigurationMode: BucketConfigurationModeFilter,
+			BucketConfiguration: []*ProjectViewBucketConfiguration{
+				{Title: "Open", Filter: &TaskCollection{Filter: "done = false"}},
+				{Title: "Done", Filter: &TaskCollection{Filter: "done = true"}},
+			},
+		}
+		require.NoError(t, view.Update(s, u))
+
+		partial := &ProjectView{
+			ID:        1,
+			ProjectID: 1,
+			Title:     "Renamed",
+			ViewKind:  ProjectViewKindKanban,
+		}
+		require.NoError(t, partial.Update(s, u))
+		require.NoError(t, s.Commit())
+
+		assert.Equal(t, BucketConfigurationModeFilter, partial.BucketConfigurationMode)
+		require.Len(t, partial.BucketConfiguration, 2)
+
+		s2 := db.NewSession()
+		defer s2.Close()
+		stored, err := GetProjectViewByIDAndProject(s2, 1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, BucketConfigurationModeFilter, stored.BucketConfigurationMode)
+		require.Len(t, stored.BucketConfiguration, 2)
+		assert.Equal(t, "Open", stored.BucketConfiguration[0].Title)
+		assert.Equal(t, "done = true", stored.BucketConfiguration[1].Filter.Filter)
 	})
 
 	t.Run("updating an already manual kanban view does not seed again", func(t *testing.T) {
@@ -389,12 +458,10 @@ func TestProjectView_Update(t *testing.T) {
 		defer s.Close()
 
 		view := &ProjectView{
-			ID:              4,
-			ProjectID:       1,
-			Title:           "Kanban",
-			ViewKind:        ProjectViewKindList,
-			DefaultBucketID: 1,
-			DoneBucketID:    3,
+			ID:        4,
+			ProjectID: 1,
+			Title:     "Kanban",
+			ViewKind:  ProjectViewKindList,
 		}
 		require.NoError(t, view.Update(s, u))
 
@@ -411,6 +478,24 @@ func TestProjectView_Update(t *testing.T) {
 			"done_bucket_id":    3,
 		}, false)
 	})
+}
+
+func TestProjectView_SavedFilterWithBucketIDFilter(t *testing.T) {
+	u := &user.User{ID: 1}
+
+	db.LoadAndAssertFixtures(t)
+	s := db.NewSession()
+	defer s.Close()
+
+	sf := &SavedFilter{
+		Title:   "bucket filter",
+		Filters: &TaskCollection{Filter: "bucket_id = 1"},
+	}
+	require.NoError(t, sf.Create(s, u))
+
+	sf.Title = "bucket filter renamed"
+	require.NoError(t, sf.Update(s, u))
+	require.NoError(t, s.Commit())
 }
 
 func TestProjectView_Create(t *testing.T) {

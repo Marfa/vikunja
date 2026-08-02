@@ -238,18 +238,8 @@ func (sf *SavedFilter) Update(s *xorm.Session, _ web.Auth) error {
 		return err
 	}
 
-	parsedFilters, err := getTaskFiltersFromFilterString(sf.Filters.Filter, sf.Filters.FilterTimezone)
-	if err != nil {
-		return err
-	}
-
-	filterCond, err := convertFiltersToDBFilterCond(parsedFilters, sf.Filters.FilterIncludeNulls)
-	if err != nil {
-		return err
-	}
-
 	for _, view := range kanbanFilterViews {
-		taskIDs, err := taskIDsWithoutBucketInView(s, view.ID, filterCond)
+		taskIDs, err := filteredTasksWithoutBucketInView(s, view.ID, sf)
 		if err != nil {
 			return err
 		}
@@ -262,16 +252,7 @@ func (sf *SavedFilter) Update(s *xorm.Session, _ web.Auth) error {
 			return err
 		}
 
-		taskBuckets := make([]*TaskBucket, 0, len(taskIDs))
-		for _, taskID := range taskIDs {
-			taskBuckets = append(taskBuckets, &TaskBucket{
-				TaskID:        taskID,
-				BucketID:      bucketID,
-				ProjectViewID: view.ID,
-			})
-		}
-
-		if _, err = s.Insert(taskBuckets); err != nil {
+		if err = insertTaskBuckets(s, view.ID, bucketID, taskIDs); err != nil {
 			return err
 		}
 

@@ -116,8 +116,8 @@ func repairKanbanViews20260802162816(tx *xorm.Engine) error {
 			view.DoneBucketID = done.ID
 			targetBucket = todo
 
-			// Persisted before task backfill so a crash before the final write
-			// still leaves a re-run finding these buckets via the existing-buckets branch.
+			// Persisted before the task backfill so a crash during it still leaves
+			// a re-run finding these buckets via the existing-buckets branch.
 			_, err = tx.
 				Where(builder.Eq{"id": view.ID}).
 				Cols("default_bucket_id", "done_bucket_id").

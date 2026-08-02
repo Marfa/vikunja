@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/web"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -354,51 +355,59 @@ func normalizeBucketConfigurationModeOnUpdate(p, oldView *ProjectView) {
 		oldView.ViewKind == ProjectViewKindKanban &&
 		oldView.BucketConfigurationMode != BucketConfigurationModeNone {
 		p.BucketConfigurationMode = oldView.BucketConfigurationMode
+		// Inheriting the mode without the configuration would leave a filter view
+		// with zero buckets.
+		if p.BucketConfigurationMode == BucketConfigurationModeFilter && len(p.BucketConfiguration) == 0 {
+			p.BucketConfiguration = oldView.BucketConfiguration
+		}
 		return
 	}
 
 	normalizeBucketConfigurationMode(p)
 }
 
-func validateProjectViewBuckets(s *xorm.Session, p, oldView *ProjectView) (err error) {
-	for _, bucket := range []struct {
-		id    *int64
-		oldID int64
-	}{
-		{&p.DefaultBucketID, oldView.DefaultBucketID},
-		{&p.DoneBucketID, oldView.DoneBucketID},
-	} {
-		if *bucket.id == 0 {
-			continue
-		}
-
-		exists, err := bucketBelongsToView(s, p.ID, *bucket.id)
-		if err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-
-		if *bucket.id != bucket.oldID {
-			return ErrBucketDoesNotBelongToProjectView{
-				BucketID:      *bucket.id,
-				ProjectViewID: p.ID,
-			}
-		}
-
-		// Rejecting a stale stored id would lock the view for good, the frontend
-		// echoes it back on every save.
-		*bucket.id = 0
+func resolveBucketIDs(s *xorm.Session, p, oldView *ProjectView) (err error) {
+	p.DefaultBucketID, err = resolveBucketID(s, p.ID, p.DefaultBucketID, oldView.DefaultBucketID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	p.DoneBucketID, err = resolveBucketID(s, p.ID, p.DoneBucketID, oldView.DoneBucketID)
+	return err
 }
 
-func bucketBelongsToView(s *xorm.Session, viewID, bucketID int64) (bool, error) {
-	return s.
-		Where(builder.Eq{"id": bucketID, "project_view_id": viewID}).
-		Exist(&Bucket{})
+func resolveBucketID(s *xorm.Session, viewID, incomingID, storedID int64) (int64, error) {
+	if incomingID == 0 {
+		return 0, nil
+	}
+
+	bucketViewID, exists, err := bucketProjectViewID(s, incomingID)
+	if err != nil {
+		return 0, err
+	}
+	if exists && bucketViewID == viewID {
+		return incomingID, nil
+	}
+
+	// Rejecting an id the frontend merely echoed back - of a bucket that is gone,
+	// or of the stale stored value - would lock the view until a reload.
+	if !exists || incomingID == storedID {
+		return 0, nil
+	}
+
+	return 0, ErrBucketDoesNotBelongToProjectView{
+		BucketID:      incomingID,
+		ProjectViewID: viewID,
+	}
+}
+
+func bucketProjectViewID(s *xorm.Session, bucketID int64) (viewID int64, exists bool, err error) {
+	exists, err = s.
+		Table(&Bucket{}).
+		Where(builder.Eq{"id": bucketID}).
+		Cols("project_view_id").
+		Get(&viewID)
+	return
 }
 
 func createProjectView(s *xorm.Session, p *ProjectView, a web.Auth, createBacklogBucket bool, addExistingTasksToView bool) (err error) {
@@ -477,7 +486,7 @@ func createDefaultKanbanBuckets(s *xorm.Session, a web.Auth, p *ProjectView, add
 	}
 
 	if addExistingTasksToView {
-		_, err = addTasksToView(s, a, p, backlog.ID)
+		_, err = addTasksToView(s, p, backlog.ID)
 		if err != nil {
 			return
 		}
@@ -486,54 +495,66 @@ func createDefaultKanbanBuckets(s *xorm.Session, a web.Auth, p *ProjectView, add
 	return
 }
 
-func addTasksToView(s *xorm.Session, a web.Auth, pv *ProjectView, bucketID int64) (added int, err error) {
-	// Keep statements well below the parameter limits of all supported databases.
-	const batchSize = 100
-
-	taskIDs, err := tasksWithoutBucketInView(s, a, pv)
+func addTasksToView(s *xorm.Session, pv *ProjectView, bucketID int64) (added int, err error) {
+	taskIDs, err := tasksWithoutBucketInView(s, pv)
 	if err != nil {
 		return 0, err
 	}
+
+	if err = insertTaskBuckets(s, pv.ID, bucketID, taskIDs); err != nil {
+		return 0, err
+	}
+
+	return len(taskIDs), nil
+}
+
+func insertTaskBuckets(s *xorm.Session, viewID, bucketID int64, taskIDs []int64) (err error) {
+	// Keep statements well below the parameter limits of all supported databases.
+	const batchSize = 100
 
 	taskBuckets := make([]*TaskBucket, 0, len(taskIDs))
 	for _, taskID := range taskIDs {
 		taskBuckets = append(taskBuckets, &TaskBucket{
 			TaskID:        taskID,
 			BucketID:      bucketID,
-			ProjectViewID: pv.ID,
+			ProjectViewID: viewID,
 		})
 	}
 
 	for i := 0; i < len(taskBuckets); i += batchSize {
 		end := min(i+batchSize, len(taskBuckets))
 		if _, err = s.Insert(taskBuckets[i:end]); err != nil {
-			return 0, err
+			return err
 		}
 	}
 
-	return len(taskBuckets), nil
+	return nil
 }
 
-func tasksWithoutBucketInView(s *xorm.Session, a web.Auth, pv *ProjectView) (taskIDs []int64, err error) {
-	if pv.ProjectID <= 0 {
-		return filteredTasksWithoutBucketInView(s, a, pv)
+func tasksWithoutBucketInView(s *xorm.Session, pv *ProjectView) (taskIDs []int64, err error) {
+	if filterID := GetSavedFilterIDFromProjectID(pv.ProjectID); filterID > 0 {
+		sf, err := GetSavedFilterSimpleByID(s, filterID)
+		if err != nil {
+			return nil, err
+		}
+
+		return filteredTasksWithoutBucketInView(s, pv.ID, sf)
 	}
 
-	return taskIDsWithoutBucketInView(s, pv.ID, builder.Eq{"tasks.project_id": pv.ProjectID})
+	return taskIDsWithoutBucketInView(s, pv.ID, builder.Eq{"tasks.project_id": pv.ProjectID}, false)
 }
 
 // Saved filter views have no project of their own, their task set only exists
 // once the filter is evaluated.
-func filteredTasksWithoutBucketInView(s *xorm.Session, a web.Auth, pv *ProjectView) (taskIDs []int64, err error) {
-	sf, err := GetSavedFilterSimpleByID(s, GetSavedFilterIDFromProjectID(pv.ProjectID))
-	if err != nil {
-		return nil, err
-	}
-
+func filteredTasksWithoutBucketInView(s *xorm.Session, viewID int64, sf *SavedFilter) (taskIDs []int64, err error) {
 	parsedFilters, err := getTaskFiltersFromFilterString(sf.Filters.Filter, sf.Filters.FilterTimezone)
 	if err != nil {
 		return nil, err
 	}
+
+	// convertFiltersToDBFilterCond rewrites the field names in place, so this has
+	// to be answered before it runs.
+	joinTaskBuckets := hasBucketIDInParsedFilter(parsedFilters)
 
 	filterCond, err := convertFiltersToDBFilterCond(parsedFilters, sf.Filters.FilterIncludeNulls)
 	if err != nil {
@@ -541,8 +562,8 @@ func filteredTasksWithoutBucketInView(s *xorm.Session, a web.Auth, pv *ProjectVi
 	}
 
 	// The filter alone matches tasks across the whole instance, restrict it to
-	// what the user can actually see.
-	projects, err := getRelevantProjectsFromCollection(s, a, &TaskCollection{})
+	// what its owner can actually see.
+	projects, err := getRelevantProjectsFromCollection(s, &user.User{ID: sf.OwnerID}, &TaskCollection{})
 	if err != nil {
 		return nil, err
 	}
@@ -551,16 +572,23 @@ func filteredTasksWithoutBucketInView(s *xorm.Session, a web.Auth, pv *ProjectVi
 		projectIDs = append(projectIDs, p.ID)
 	}
 
-	return taskIDsWithoutBucketInView(s, pv.ID, builder.And(
+	return taskIDsWithoutBucketInView(s, viewID, builder.And(
 		builder.In("tasks.project_id", projectIDs),
 		filterCond,
-	))
+	), joinTaskBuckets)
 }
 
 // Selecting ids instead of beans means xorm adds no soft-delete condition of its own.
-func taskIDsWithoutBucketInView(s *xorm.Session, viewID int64, cond builder.Cond) (taskIDs []int64, err error) {
+func taskIDsWithoutBucketInView(s *xorm.Session, viewID int64, cond builder.Cond, joinTaskBuckets bool) (taskIDs []int64, err error) {
 	taskIDs = []int64{}
-	err = s.Table("tasks").
+	query := s.Table("tasks")
+	// convertFiltersToDBFilterCond resolves bucket_id against task_buckets, which
+	// is only in scope through this join.
+	if joinTaskBuckets {
+		query = query.Join("LEFT", "task_buckets", "task_buckets.task_id = tasks.id AND task_buckets.project_view_id = ?", viewID)
+	}
+
+	err = query.
 		Where(cond).
 		And(taskNotDeletedCond("tasks")).
 		And(builder.NotIn("tasks.id", builder.
@@ -599,28 +627,37 @@ func (pv *ProjectView) Update(s *xorm.Session, a web.Auth) (err error) {
 		return
 	}
 
-	err = validateProjectViewBuckets(s, pv, oldView)
+	err = resolveBucketIDs(s, pv, oldView)
 	if err != nil {
 		return
 	}
 
+	cols := []string{
+		"title",
+		"view_kind",
+		"filter",
+		"position",
+		"bucket_configuration_mode",
+		"bucket_configuration",
+	}
+	// A view without buckets has no business writing bucket ids - keeping the
+	// stored ones is what lets healBucketIDs restore them on the way back.
+	if pv.ViewKind == ProjectViewKindKanban {
+		cols = append(cols, "default_bucket_id", "done_bucket_id")
+	}
+
 	_, err = s.
 		ID(pv.ID).
-		Cols(
-			"title",
-			"view_kind",
-			"filter",
-			"position",
-			"bucket_configuration_mode",
-			"bucket_configuration",
-			"default_bucket_id",
-			"done_bucket_id",
-		).
+		Cols(cols...).
 		Update(pv)
 	if err != nil {
 		return
 	}
 
+	return syncManualKanbanBuckets(s, a, pv, oldView)
+}
+
+func syncManualKanbanBuckets(s *xorm.Session, a web.Auth, pv, oldView *ProjectView) (err error) {
 	// Pseudo views like favorites only exist in memory, seeding would write
 	// buckets on a view id shared by every user.
 	becameManualKanban := pv.ID > 0 &&
@@ -648,7 +685,7 @@ func (pv *ProjectView) Update(s *xorm.Session, a web.Auth) (err error) {
 	}
 
 	// Tasks created while the view was not a kanban view are not in any bucket yet
-	added, err := addTasksToView(s, a, pv, pv.DefaultBucketID)
+	added, err := addTasksToView(s, pv, pv.DefaultBucketID)
 	if err != nil || added == 0 {
 		return err
 	}
@@ -656,8 +693,8 @@ func (pv *ProjectView) Update(s *xorm.Session, a web.Auth) (err error) {
 	return RecalculateTaskPositions(s, pv, a)
 }
 
-// Both ids are zeroed while the view is not a kanban view, restore them from the
-// previous state unless the bucket is gone by now.
+// Clients may omit both ids, restore them from the previous state unless the
+// bucket is gone by now.
 func healBucketIDs(s *xorm.Session, pv, oldView *ProjectView) (err error) {
 	if pv.DefaultBucketID == 0 {
 		pv.DefaultBucketID, err = existingBucketID(s, pv.ID, oldView.DefaultBucketID)
@@ -687,8 +724,8 @@ func existingBucketID(s *xorm.Session, viewID, bucketID int64) (int64, error) {
 		return 0, nil
 	}
 
-	exists, err := bucketBelongsToView(s, viewID, bucketID)
-	if err != nil || !exists {
+	bucketViewID, exists, err := bucketProjectViewID(s, bucketID)
+	if err != nil || !exists || bucketViewID != viewID {
 		return 0, err
 	}
 
