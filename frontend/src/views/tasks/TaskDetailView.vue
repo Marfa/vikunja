@@ -1287,24 +1287,46 @@ function setRelatedTasksActive() {
 
 	.detail-content,
 	.action-buttons,
-	.column.is-two-thirds {
+	.column.is-two-thirds,
+	.column.is-one-third {
 		inline-size: 100% !important;
 		max-inline-size: 100%;
 		width: 100% !important;
+	}
+
+	// Attribute cards (priority/due/repeat/…) must not share a half-width row.
+	.details.columns {
+		flex-direction: column;
+
+		> .column {
+			inline-size: 100% !important;
+			width: 100% !important;
+			max-inline-size: 100%;
+		}
 	}
 
 	.action-buttons {
 		position: static;
 		inset-block-start: auto;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.35rem;
+		flex-direction: column;
+		flex-wrap: nowrap;
+		align-items: stretch;
+		gap: 0.5rem;
 
-		.button {
-			inline-size: auto;
-			flex: 1 1 auto;
+		:deep(.button),
+		:deep(.base-button) {
+			inline-size: 100% !important;
+			flex: none;
+			min-inline-size: 0;
 			margin-block-end: 0;
-			min-inline-size: 8rem;
+			justify-content: flex-start;
+		}
+
+		.action-heading {
+			display: block;
+			inline-size: 100%;
+			margin: 0.75rem 0 0;
 		}
 	}
 }

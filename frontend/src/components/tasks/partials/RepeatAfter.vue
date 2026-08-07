@@ -231,11 +231,12 @@ function setEveryWeekday() {
 
 <style lang="scss" scoped>
 p {
-	padding-block-start: 6px;
+	padding-block-start: 0;
+	margin: 0;
 }
 
 .input {
-	min-inline-size: 2rem;
+	min-inline-size: 3.5rem;
 }
 
 .preset-list {
@@ -254,16 +255,30 @@ p {
 }
 
 .mode-row {
-	gap: 0.5rem;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.35rem;
 }
 
 .mode-label {
-	white-space: nowrap;
+	white-space: normal;
 	flex-shrink: 0;
 }
 
 .interval-row {
+	flex-wrap: wrap;
 	align-items: center;
+	gap: 0.5rem;
+
+	.pis-4 {
+		padding-inline-start: 0;
+	}
+
+	.field.has-addons {
+		flex: 1 1 12rem;
+		min-inline-size: 12rem;
+		margin-block-end: 0;
+	}
 }
 
 .select.is-fullwidth,
