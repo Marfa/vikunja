@@ -972,6 +972,30 @@ func TestUpdateDone(t *testing.T) {
 				assert.False(t, newTask.Done)
 			})
 		})
+		t.Run("snap weekend due to monday for weekday mode", func(t *testing.T) {
+			sat := time.Date(2026, 8, 8, 23, 59, 0, 0, time.FixedZone("MSK", 3*3600))
+			assert.Equal(t, time.Saturday, sat.Weekday())
+			task := &Task{RepeatMode: TaskRepeatModeWeekdays, DueDate: sat}
+			snapTaskDatesToWeekdays(task)
+			assert.Equal(t, time.Monday, task.DueDate.Weekday())
+			assert.Equal(t, sat.AddDate(0, 0, 2), task.DueDate)
+
+			sun := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+			assert.Equal(t, time.Sunday, sun.Weekday())
+			task = &Task{RepeatMode: TaskRepeatModeWeekdays, DueDate: sun}
+			snapTaskDatesToWeekdays(task)
+			assert.Equal(t, time.Monday, task.DueDate.Weekday())
+
+			fri := time.Date(2026, 8, 7, 12, 0, 0, 0, time.UTC)
+			assert.Equal(t, time.Friday, fri.Weekday())
+			task = &Task{RepeatMode: TaskRepeatModeWeekdays, DueDate: fri}
+			snapTaskDatesToWeekdays(task)
+			assert.Equal(t, fri, task.DueDate)
+
+			task = &Task{RepeatMode: TaskRepeatModeDefault, DueDate: sat}
+			snapTaskDatesToWeekdays(task)
+			assert.Equal(t, sat, task.DueDate)
+		})
 		t.Run("repeat from current date", func(t *testing.T) {
 			t.Run("due date", func(t *testing.T) {
 				oldTask := &Task{

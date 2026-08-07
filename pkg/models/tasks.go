@@ -1064,6 +1064,7 @@ func createTasks(s *xorm.Session, projectID int64, tasks []*Task, a web.Auth, up
 		}
 
 		t.HexColor = utils.NormalizeHex(t.HexColor)
+		snapTaskDatesToWeekdays(t)
 
 		_, err = s.Insert(t)
 		if err != nil {
@@ -1591,6 +1592,9 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 		ot.CoverImageAttachmentID = 0
 	}
 
+	// Weekday repeat: keep due/start/end off weekends so Upcoming doesn't park them on Sat/Sun.
+	snapTaskDatesToWeekdays(&ot)
+
 	_, err = s.ID(t.ID).
 		Cols(colsToUpdate...).
 		Update(&ot)
@@ -1800,6 +1804,36 @@ func nextWeekday(t time.Time) time.Time {
 		next = next.AddDate(0, 0, 1)
 	}
 	return next
+}
+
+// snapToWeekday moves Sat/Sun forward to Monday; weekdays are unchanged.
+func snapToWeekday(t time.Time) time.Time {
+	if t.IsZero() {
+		return t
+	}
+	switch t.Weekday() {
+	case time.Saturday:
+		return t.AddDate(0, 0, 2)
+	case time.Sunday:
+		return t.AddDate(0, 0, 1)
+	default:
+		return t
+	}
+}
+
+// snapTaskDatesToWeekdays keeps weekday-repeat tasks off Sat/Sun in list views.
+func snapTaskDatesToWeekdays(t *Task) {
+	if t == nil || t.RepeatMode != TaskRepeatModeWeekdays {
+		return
+	}
+	t.DueDate = snapToWeekday(t.DueDate)
+	t.StartDate = snapToWeekday(t.StartDate)
+	t.EndDate = snapToWeekday(t.EndDate)
+	for _, r := range t.Reminders {
+		if r != nil && !r.Reminder.IsZero() {
+			r.Reminder = snapToWeekday(r.Reminder)
+		}
+	}
 }
 
 // addWeekdayIntervalToTime advances t by weekdays until the result is after now (catch-up when overdue).

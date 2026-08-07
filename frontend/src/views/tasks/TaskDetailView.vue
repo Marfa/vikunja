@@ -702,6 +702,7 @@ import {scrollIntoView} from '@/helpers/scrollIntoView'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
 import {REMINDER_PERIOD_RELATIVE_TO_TYPES} from '@/types/IReminderPeriodRelativeTo'
 import {playPopSound} from '@/helpers/playPop'
+import {snapToWeekday} from '@/helpers/time/snapToWeekday'
 
 import {useTaskStore} from '@/stores/tasks'
 import {useKanbanStore} from '@/stores/kanban'
@@ -1142,6 +1143,12 @@ async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter
 
 	task.value.repeatMode = mode
 	task.value.repeatAfter = after
+
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
+		task.value.dueDate = snapToWeekday(task.value.dueDate)
+		task.value.startDate = snapToWeekday(task.value.startDate)
+		task.value.endDate = snapToWeekday(task.value.endDate)
+	}
 
 	await saveTask()
 }
