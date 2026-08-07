@@ -285,15 +285,19 @@ onBeforeUnmount(() => {
 
 <style lang="scss">
 // Reserve space so the docked task editor does not cover the task list.
+html.has-task-side-panel {
+	--task-side-panel-width: min(42rem, 55vw);
+}
+
 html.has-task-side-panel .app-content {
 	@media screen and (min-width: $tablet) {
-		padding-inline-end: min(28rem, 40vw);
+		padding-inline-end: var(--task-side-panel-width);
 	}
 }
 
 html.has-task-side-panel .keyboard-shortcuts-button {
 	@media screen and (min-width: $tablet) {
-		inset-inline-end: calc(min(28rem, 40vw) + 1rem);
+		inset-inline-end: calc(var(--task-side-panel-width) + 1rem);
 	}
 }
 </style>

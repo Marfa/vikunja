@@ -497,52 +497,62 @@ $modal-width: 1024px;
 	}
 }
 
-// Docked editor: list stays visible/interactive on the left.
+// Docked editor: dialog itself is only the right strip (list stays clickable).
 .is-side-panel.modal-dialog {
-	background: transparent;
-	inset: 0;
-	inline-size: 100%;
+	--task-side-panel-width: min(42rem, 55vw);
+	background: var(--site-background);
+	color: var(--text);
+	inset-block: 0;
+	inset-inline-end: 0;
+	inset-inline-start: auto;
+	inline-size: var(--task-side-panel-width);
+	max-inline-size: var(--task-side-panel-width);
 	block-size: 100%;
-	pointer-events: none;
+	max-block-size: 100dvh;
+	z-index: 4000;
+	box-shadow: -0.25rem 0 1.25rem rgba(0, 0, 0, 0.12);
+	pointer-events: auto;
 
 	.modal-container {
-		display: flex;
-		justify-content: flex-end;
+		display: block;
+		position: relative;
 		padding: 0;
-		overflow: hidden;
-		pointer-events: none;
+		overflow: auto;
+		inline-size: 100%;
+		block-size: 100%;
+		pointer-events: auto;
 	}
 
 	.modal-content {
-		pointer-events: auto;
-		inline-size: min(28rem, 100vw);
-		max-inline-size: min(28rem, 100vw);
-		block-size: 100%;
-		max-block-size: 100dvh;
+		inline-size: 100%;
+		max-inline-size: 100%;
+		block-size: auto;
+		min-block-size: 100%;
+		max-block-size: none;
 		margin: 0;
-		overflow: auto;
+		overflow: visible;
 		border-radius: 0;
 		background: var(--site-background);
-		box-shadow: -0.25rem 0 1.25rem rgba(0, 0, 0, 0.12);
 		color: var(--text);
+		box-shadow: none;
+		pointer-events: auto;
 	}
 
 	.close {
-		position: sticky;
-		inset-block-start: 0.5rem;
-		inset-inline-end: 0.5rem;
-		float: inline-end;
-		z-index: 2;
+		position: absolute !important;
+		inset-block-start: 0.65rem;
+		inset-inline-end: 0.75rem;
+		z-index: 5;
 		color: var(--text);
 		font-size: 1.5rem;
-		transform: none;
+		transform: none !important;
+		pointer-events: auto;
 	}
 
 	@media screen and (max-width: $tablet) {
-		.modal-content {
-			inline-size: 100%;
-			max-inline-size: 100%;
-		}
+		--task-side-panel-width: 100vw;
+		inline-size: 100vw;
+		max-inline-size: 100vw;
 	}
 }
 </style>

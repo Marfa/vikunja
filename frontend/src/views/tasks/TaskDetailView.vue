@@ -1267,13 +1267,38 @@ function setRelatedTasksActive() {
 }
 
 .is-modal .task-view {
-	border-radius: $radius;
+	border-radius: 0;
 	padding: 1rem;
+	padding-block-start: 2.5rem; // room for the side-panel close button
 	color: var(--text);
 	background-color: var(--site-background) !important;
 
-	@media screen and (width <= calc(#{$desktop} + 1px)) {
-		border-radius: 0;
+	// Side panel is narrow: stack detail + action buttons, full width.
+	> .columns {
+		flex-direction: column;
+	}
+
+	.detail-content,
+	.action-buttons,
+	.column.is-two-thirds {
+		inline-size: 100% !important;
+		max-inline-size: 100%;
+		width: 100% !important;
+	}
+
+	.action-buttons {
+		position: static;
+		inset-block-start: auto;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+
+		.button {
+			inline-size: auto;
+			flex: 1 1 auto;
+			margin-block-end: 0;
+			min-inline-size: 8rem;
+		}
 	}
 }
 
@@ -1455,14 +1480,9 @@ h2 .button {
 }
 
 .is-modal .action-buttons {
-	// we need same top margin for the modal close button 
+	// Side panel stacks actions in .task-view; keep sticky overrides off.
 	@media screen and (min-width: $tablet) {
-		inset-block-start: 6.5rem;
-	}
-	// this is the moment when the fixed close button is outside the modal
-	// => we can fill up the space again
-	@media screen and (width >= calc(#{$desktop} + 84px)) {
-		inset-block-start: 0;
+		inset-block-start: auto;
 	}
 }
 
