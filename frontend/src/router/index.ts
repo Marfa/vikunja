@@ -4,7 +4,7 @@ import {saveLastVisited} from '@/helpers/saveLastVisited'
 
 import {getProjectViewId} from '@/helpers/projectView'
 import {parseDateOrString} from '@/helpers/time/parseDateOrString'
-import {getNextWeekDate} from '@/helpers/time/getNextWeekDate'
+import {DATE_RANGES} from '@/components/date/dateRanges'
 import {LINK_SHARE_HASH_PREFIX} from '@/constants/linkShareHash'
 import {REDIRECT_HASH_PREFIX} from '@/constants/redirectHash'
 import {AUTH_ROUTE_NAMES} from '@/constants/authRouteNames'
@@ -219,8 +219,8 @@ const router = createRouter({
 			name: 'tasks.range',
 			component: UpcomingTasks,
 			props: route => ({
-				dateFrom: parseDateOrString(route.query.from as string, new Date()),
-				dateTo: parseDateOrString(route.query.to as string, getNextWeekDate()),
+				dateFrom: parseDateOrString(route.query.from as string, DATE_RANGES.next7Days[0]),
+				dateTo: parseDateOrString(route.query.to as string, DATE_RANGES.next7Days[1]),
 				showNulls: route.query.showNulls === 'true',
 				showOverdue: route.query.showOverdue === 'true',
 			}),

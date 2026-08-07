@@ -39,9 +39,7 @@ func TestConvertTodoistToVikunja(t *testing.T) {
 	time3, err := time.Parse(time.RFC3339Nano, "2014-10-21T08:25:05Z")
 	require.NoError(t, err)
 	time3 = time3.In(config.GetTimeZone())
-	dueTime, err := time.Parse(time.RFC3339Nano, "2020-05-31T23:59:00Z")
-	require.NoError(t, err)
-	dueTime = dueTime.In(config.GetTimeZone())
+	dueTime := time.Date(2020, 5, 31, 23, 59, 0, 0, config.GetTimeZone())
 	dueTimeWithTime, err := time.Parse(time.RFC3339Nano, "2021-01-31T19:00:00Z")
 	require.NoError(t, err)
 	dueTimeWithTime = dueTimeWithTime.In(config.GetTimeZone())
@@ -644,7 +642,7 @@ func TestConvertTodoistToVikunja(t *testing.T) {
 	}
 
 	doneItems := make(map[string]*doneItem)
-	hierachie, err := convertTodoistToVikunja(testSync, doneItems)
+	hierachie, err := convertTodoistToVikunja(testSync, doneItems, config.GetTimeZone())
 	require.NoError(t, err)
 	assert.NotNil(t, hierachie)
 	if diff, equal := messagediff.PrettyDiff(hierachie, expectedHierachie); !equal {
@@ -694,4 +692,22 @@ func TestParseTodoistRepeat(t *testing.T) {
 			assert.Equal(t, tt.want, parseTodoistRepeat(tt.due))
 		})
 	}
+}
+
+func TestParseDateDateOnlyUsesLocation(t *testing.T) {
+	moscow, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+
+	got, err := parseDate("2026-08-03", moscow)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2026, got.Year())
+	assert.Equal(t, time.August, got.Month())
+	assert.Equal(t, 3, got.Day())
+	assert.Equal(t, 23, got.Hour())
+	assert.Equal(t, 59, got.Minute())
+	assert.Equal(t, moscow, got.Location())
+
+	// Must not land on Aug 4 in Moscow (the old UTC-EOD bug).
+	assert.Equal(t, 3, got.In(moscow).Day())
 }

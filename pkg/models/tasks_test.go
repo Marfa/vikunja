@@ -939,6 +939,39 @@ func TestUpdateDone(t *testing.T) {
 			assert.Equal(t, expected, newTask.DueDate)
 			assert.False(t, newTask.Done)
 		})
+		t.Run("weekdays", func(t *testing.T) {
+			t.Run("friday advances to monday", func(t *testing.T) {
+				// 2099-01-01 is a Friday
+				due := time.Date(2099, 1, 2, 9, 0, 0, 0, time.UTC)
+				assert.Equal(t, time.Friday, due.Weekday())
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeWeekdays,
+					DueDate:    due,
+				}
+				newTask := &Task{Done: true}
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.Monday, newTask.DueDate.Weekday())
+				assert.Equal(t, due.AddDate(0, 0, 3), newTask.DueDate)
+				assert.False(t, newTask.Done)
+			})
+			t.Run("monday advances to tuesday", func(t *testing.T) {
+				due := time.Date(2099, 6, 1, 9, 0, 0, 0, time.UTC) // Monday far future
+				assert.Equal(t, time.Monday, due.Weekday())
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeWeekdays,
+					DueDate:    due,
+				}
+				newTask := &Task{Done: true}
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.Tuesday, newTask.DueDate.Weekday())
+				assert.Equal(t, due.AddDate(0, 0, 1), newTask.DueDate)
+				assert.False(t, newTask.Done)
+			})
+		})
 		t.Run("repeat from current date", func(t *testing.T) {
 			t.Run("due date", func(t *testing.T) {
 				oldTask := &Task{

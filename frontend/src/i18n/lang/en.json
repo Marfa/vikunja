@@ -252,6 +252,11 @@
           "light": "Light",
           "system": "System",
           "dark": "Dark"
+        },
+        "uiSkin": {
+          "title": "UI Skin",
+          "default": "Default",
+          "todoist": "Todoist"
         }
       },
       "backgroundBrightness": {
@@ -749,7 +754,10 @@
   },
   "navigation": {
     "overview": "Overview",
+    "today": "Today",
     "upcoming": "Upcoming",
+    "myProjects": "My projects",
+    "addTask": "Add task",
     "settings": "Settings",
     "imprint": "Imprint",
     "privacy": "Privacy Policy",
@@ -969,6 +977,8 @@
       "titleCurrent": "Current Tasks",
       "noDates": "Show tasks without date",
       "overdue": "Show overdue tasks",
+      "overdueGroup": "Overdue",
+      "noDateGroup": "No date",
       "fromuntil": "Tasks from {from} until {until}",
       "select": "Select a date range",
       "noTasks": "Nothing to do — Have a nice day!",
@@ -1186,10 +1196,12 @@
     },
     "repeat": {
       "everyDay": "Every Day",
+      "everyWeekday": "Every Weekday",
       "everyWeek": "Every Week",
       "every30d": "Every 30 Days",
       "mode": "Repeat mode",
       "monthly": "Monthly",
+      "weekdays": "Weekdays (Mon–Fri)",
       "fromCurrentDate": "From completion date",
       "each": "Each",
       "specifyAmount": "Specify an amount…",

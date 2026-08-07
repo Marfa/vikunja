@@ -8,6 +8,7 @@ import {PRIORITIES} from '@/constants/priorities'
 import {DATE_DISPLAY} from '@/constants/dateDisplay'
 import {TIME_FORMAT} from '@/constants/timeFormat'
 import {RELATION_KIND} from '@/types/IRelationKind'
+import {UI_SKIN} from '@/constants/uiSkin'
 
 export default class UserSettingsModel extends AbstractModel<IUserSettings> implements IUserSettings {
 	name = ''
@@ -24,6 +25,7 @@ export default class UserSettingsModel extends AbstractModel<IUserSettings> impl
 		playSoundWhenDone: true,
 		quickAddMagicMode: PrefixMode.Default,
 		colorSchema: 'auto',
+		uiSkin: UI_SKIN.DEFAULT,
 		allowIconChanges: true,
 		filterIdUsedOnOverview: null,
 		defaultView: DEFAULT_PROJECT_VIEW_SETTINGS.FIRST,

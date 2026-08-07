@@ -9,7 +9,7 @@ export const DATE_RANGES = {
 	'thisWeek': ['now/w', 'now/w+1w'],
 	'restOfThisWeek': ['now', 'now/w+1w'],
 	'nextWeek': ['now/w+1w', 'now/w+2w'],
-	'next7Days': ['now', 'now+7d'],
+	'next7Days': ['now/d', 'now/d+7d'],
 
 	'lastMonth': ['now/M-1M', 'now/M'],
 	'thisMonth': ['now/M', 'now/M+1M'],

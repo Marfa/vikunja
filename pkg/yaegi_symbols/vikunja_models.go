@@ -373,6 +373,7 @@ func init() {
 		"TaskRepeatModeDefault":                            reflect.ValueOf(models.TaskRepeatModeDefault),
 		"TaskRepeatModeFromCurrentDate":                    reflect.ValueOf(models.TaskRepeatModeFromCurrentDate),
 		"TaskRepeatModeMonth":                              reflect.ValueOf(models.TaskRepeatModeMonth),
+		"TaskRepeatModeWeekdays":                           reflect.ValueOf(models.TaskRepeatModeWeekdays),
 		"UpdateProject":                                    reflect.ValueOf(models.UpdateProject),
 		"UpdateSessionLastActive":                          reflect.ValueOf(models.UpdateSessionLastActive),
 		"UpdateUserAvatarProvider":                         reflect.ValueOf(models.UpdateUserAvatarProvider),

@@ -1,4 +1,5 @@
 import {createDateFromString} from '@/helpers/time/createDateFromString'
+import {resolveDateOnlyDue} from '@/helpers/time/resolveDateOnlyDue'
 import dayjs from 'dayjs'
 
 import {i18n} from '@/i18n'
@@ -24,7 +25,7 @@ export const formatDate = (date: Date | string | null, f: string) => {
 		return ''
 	}
 
-	date = createDateFromString(date)
+	date = resolveDateOnlyDue(createDateFromString(date))
 	
 	const locale = DAYJS_LOCALE_MAPPING[i18n.global.locale.value.toLowerCase()] ?? 'en'
 
@@ -46,7 +47,7 @@ export const formatDateSince = (date: Date | string | null) => {
 		return ''
 	}
 
-	date = createDateFromString(date)
+	date = resolveDateOnlyDue(createDateFromString(date))
 
 	const locale = DAYJS_LOCALE_MAPPING[i18n.global.locale.value.toLowerCase()] ?? 'en'
 
@@ -93,6 +94,8 @@ export function formatDisplayDateFormat(date: Date | string | null, format: Date
 	if (date === null || !dateIsValid(date)) {
 		return ''
 	}
+
+	date = resolveDateOnlyDue(date)
 
 	// Determine the time format string to use
 	// For 24-hour: HH:mm (24-hour format)

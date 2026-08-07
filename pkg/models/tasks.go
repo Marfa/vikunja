@@ -47,6 +47,8 @@ const (
 	TaskRepeatModeDefault TaskRepeatMode = iota
 	TaskRepeatModeMonth
 	TaskRepeatModeFromCurrentDate
+	// TaskRepeatModeWeekdays advances dates to the next Mon–Fri (skips Sat/Sun).
+	TaskRepeatModeWeekdays
 )
 
 // MaxTaskRepeatAfterSeconds caps repeat_after at ten years. Sized to
@@ -90,8 +92,8 @@ type Task struct {
 	ProjectID int64 `xorm:"bigint INDEX not null unique(tasks_project_index)" json:"project_id" param:"project" doc:"The id of the project this task belongs to. On create it is taken from the URL; on update, setting it to a different project moves the task (requires write access to the target project)."`
 	// An amount in seconds this task repeats itself. If this is set, when marking the task as done, it will mark itself as "undone" and then increase all remindes and the due date by its amount.
 	RepeatAfter int64 `xorm:"bigint INDEX null" json:"repeat_after" valid:"range(0|9223372036854775807)" doc:"The interval in seconds this task repeats. When set, marking the task done re-opens it and bumps its reminders and due date by this amount."`
-	// Can have three possible values which will trigger when the task is marked as done: 0 = repeats after the amount specified in repeat_after, 1 = repeats all dates each months (ignoring repeat_after), 3 = repeats from the current date rather than the last set date.
-	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date."`
+	// Repeat modes when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date, 3 = next weekday (Mon–Fri, ignores repeat_after).
+	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date, 3 = next weekday Mon-Fri (ignores repeat_after)."`
 	// The task priority. Can be anything you want, it is possible to sort by this later.
 	Priority int64 `xorm:"bigint null" json:"priority"`
 	// When this task starts.
@@ -213,7 +215,8 @@ func (t *Task) GetFrontendURL() string {
 
 func (t *Task) isRepeating() bool {
 	return t.RepeatAfter > 0 ||
-		t.RepeatMode == TaskRepeatModeMonth
+		t.RepeatMode == TaskRepeatModeMonth ||
+		t.RepeatMode == TaskRepeatModeWeekdays
 }
 
 type taskFilterConcatinator string
@@ -1790,6 +1793,49 @@ func setTaskDatesDefault(oldTask, newTask *Task) {
 	newTask.Done = false
 }
 
+// nextWeekday returns the next Mon–Fri strictly after t (Sat→Mon, Sun→Mon, Fri→Mon).
+func nextWeekday(t time.Time) time.Time {
+	next := t.AddDate(0, 0, 1)
+	for next.Weekday() == time.Saturday || next.Weekday() == time.Sunday {
+		next = next.AddDate(0, 0, 1)
+	}
+	return next
+}
+
+// addWeekdayIntervalToTime advances t by weekdays until the result is after now (catch-up when overdue).
+func addWeekdayIntervalToTime(now, t time.Time) time.Time {
+	next := nextWeekday(t)
+	for !next.After(now) {
+		next = nextWeekday(next)
+	}
+	return next
+}
+
+func setTaskDatesWeekdaysRepeat(oldTask, newTask *Task) {
+	now := time.Now()
+
+	if !oldTask.DueDate.IsZero() {
+		newTask.DueDate = addWeekdayIntervalToTime(now, oldTask.DueDate)
+	}
+
+	newTask.Reminders = oldTask.Reminders
+	if len(oldTask.Reminders) > 0 {
+		for in, r := range oldTask.Reminders {
+			newTask.Reminders[in].Reminder = addWeekdayIntervalToTime(now, r.Reminder)
+		}
+	}
+
+	if !oldTask.StartDate.IsZero() {
+		newTask.StartDate = addWeekdayIntervalToTime(now, oldTask.StartDate)
+	}
+
+	if !oldTask.EndDate.IsZero() {
+		newTask.EndDate = addWeekdayIntervalToTime(now, oldTask.EndDate)
+	}
+
+	newTask.Done = false
+}
+
 func setTaskDatesMonthRepeat(oldTask, newTask *Task) {
 	if !oldTask.DueDate.IsZero() {
 		newTask.DueDate = addOneMonthToDate(oldTask.DueDate)
@@ -1916,6 +1962,8 @@ func updateDone(oldTask *Task, newTask *Task) (updateDoneAt bool) {
 			setTaskDatesMonthRepeat(oldTask, newTask)
 		case TaskRepeatModeFromCurrentDate:
 			setTaskDatesFromCurrentDateRepeat(oldTask, newTask)
+		case TaskRepeatModeWeekdays:
+			setTaskDatesWeekdaysRepeat(oldTask, newTask)
 		case TaskRepeatModeDefault:
 			setTaskDatesDefault(oldTask, newTask)
 		}

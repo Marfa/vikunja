@@ -248,6 +248,11 @@
 					"light": "Светлая",
 					"system": "Системная",
 					"dark": "Тёмная"
+				},
+				"uiSkin": {
+					"title": "Оформление",
+					"default": "По умолчанию",
+					"todoist": "Todoist"
 				}
 			},
 			"backgroundBrightness": {
@@ -742,7 +747,10 @@
 	},
 	"navigation": {
 		"overview": "Обзор",
-		"upcoming": "Предстоящие задачи",
+		"today": "Сегодня",
+		"upcoming": "Предстоящее",
+		"myProjects": "Мои проекты",
+		"addTask": "Добавить задачу",
 		"settings": "Настройки",
 		"imprint": "Отпечаток",
 		"privacy": "Политика конфиденциальности",
@@ -956,6 +964,8 @@
 			"titleCurrent": "Текущие задачи",
 			"noDates": "Показать задачи без даты",
 			"overdue": "Показать просроченные задачи",
+			"overdueGroup": "Просроченные",
+			"noDateGroup": "Без даты",
 			"fromuntil": "Задачи с {from} по {until}",
 			"select": "Выбрать диапазон дат",
 			"noTasks": "Делать нечего — хорошего дня!",
@@ -1173,10 +1183,12 @@
 		},
 		"repeat": {
 			"everyDay": "Каждый день",
+			"everyWeekday": "Каждый будний день",
 			"everyWeek": "Каждую неделю",
 			"every30d": "Каждые 30 дней",
 			"mode": "Режим повтора",
 			"monthly": "Ежемесячно",
+			"weekdays": "Будни (пн–пт)",
 			"fromCurrentDate": "С даты завершения",
 			"each": "Каждые",
 			"specifyAmount": "Укажите количество…",

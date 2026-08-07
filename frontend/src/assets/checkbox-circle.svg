@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 18 18" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+	<title>Checkbox</title>
+	<circle cx="9" cy="9" r="7.25" stroke-dasharray="60"></circle>
+	<polyline points="5 9.5 8 12.5 13 6" stroke-dasharray="22" stroke-dashoffset="66"></polyline>
+</svg>

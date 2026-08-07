@@ -11,6 +11,13 @@
 			<XButton
 				variant="secondary"
 				class="is-small"
+				@click="setEveryWeekday"
+			>
+				{{ $t('task.repeat.everyWeekday') }}
+			</XButton>
+			<XButton
+				variant="secondary"
+				class="is-small"
 				@click="() => setRepeatAfter(1, 'weeks')"
 			>
 				{{ $t('task.repeat.everyWeek') }}
@@ -46,12 +53,15 @@
 						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE">
 							{{ $t('task.repeat.fromCurrentDate') }}
 						</option>
+						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS">
+							{{ $t('task.repeat.weekdays') }}
+						</option>
 					</select>
 				</div>
 			</div>
 		</div>
 		<div
-			v-if="task.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH"
+			v-if="task.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH && task.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS"
 			class="is-flex"
 		>
 			<p class="pis-4">
@@ -155,7 +165,15 @@ function updateData() {
 }
 
 function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
+	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
 	Object.assign(repeatAfter, { amount, type})
+	updateData()
+}
+
+/** Every Mon–Fri; interval amount is unused by the API for this mode. */
+function setEveryWeekday() {
+	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
+	Object.assign(repeatAfter, { amount: 1, type: 'days'})
 	updateData()
 }
 </script>
@@ -172,6 +190,7 @@ p {
 .button-group {
 	display: flex;
 	justify-content: center;
+	flex-wrap: wrap;
 
 	:deep(.button:not(:last-child)) {
 		border-start-end-radius: 0;

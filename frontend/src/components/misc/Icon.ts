@@ -46,6 +46,7 @@ import {
 	faHeader,
 	faHistory,
 	faImage,
+	faInbox,
 	faKeyboard,
 	faLayerGroup,
 	faList,
@@ -158,6 +159,7 @@ library.add(faGripLines)
 library.add(faHeader)
 library.add(faHistory)
 library.add(faImage)
+library.add(faInbox)
 library.add(faKeyboard)
 library.add(faLayerGroup)
 library.add(faList)

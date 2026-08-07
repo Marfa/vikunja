@@ -2,6 +2,7 @@
 	<div
 		ref="taskAdd"
 		class="task-add"
+		:class="{'is-compact': compact}"
 	>
 		<div class="add-task__field field">
 			<p class="control task-input-wrapper">
@@ -85,6 +86,14 @@ const emit = defineEmits<{
 	tasksAdded: [tasks: ITask[]],
 }>()
 
+const props = withDefaults(defineProps<{
+	defaultDueDate?: Date | string | null,
+	compact?: boolean,
+}>(), {
+	defaultDueDate: null,
+	compact: false,
+})
+
 const textareaId = computed(() => `task-add-textarea-${Math.random().toString(36).substr(2, 9)}`)
 
 const newTaskTitle = ref('')
@@ -156,6 +165,10 @@ async function addTask() {
 	try {
 		newTaskTitle.value = ''
 
+		const defaultDue = props.defaultDueDate
+			? new Date(props.defaultDueDate).toISOString()
+			: undefined
+
 		const entries = await Promise.all(tasksToCreate
 			.filter(({title}) => title !== '')
 			.map(async ({title, project}) => ({
@@ -163,6 +176,7 @@ async function addTask() {
 				projectId: (project !== null
 					? await taskStore.findProjectId({project, projectId: 0})
 					: currentProjectId) || authStore.settings.defaultProjectId || 0,
+				dueDate: defaultDue,
 			})))
 
 		// Input like a lone bullet passes the empty check but parses to nothing.
@@ -352,6 +366,22 @@ defineExpose({
 .add-task-textarea {
 	transition: border-color $transition;
 	resize: none;
+}
+
+.task-add.is-compact {
+	.add-task__field {
+		gap: 0.5rem;
+	}
+
+	.add-task-button .button-text {
+		display: none;
+	}
+
+	@media screen and (min-width: $tablet) {
+		.add-task-button .button-text {
+			display: none;
+		}
+	}
 }
 
 // Adding this class when the textarea has no text prevents the textarea from wrapping the placeholder.

@@ -547,12 +547,15 @@ export const useTaskStore = defineStore('task', () => {
 	// Returns the created tasks aligned 1:1 with entries (null = not created),
 	// error is null when nothing failed.
 	async function createNewTasksBulk(
-		entries: {title: string, projectId: number}[],
+		entries: {title: string, projectId: number, dueDate?: string | null}[],
 	): Promise<{tasks: (ITask | null)[], error: unknown}> {
 		const cancel = setModuleLoading(setIsLoading)
 		try {
-			const built = await Promise.all(entries.map(async ({title, projectId}) => {
+			const built = await Promise.all(entries.map(async ({title, projectId, dueDate}) => {
 				const {task, parsedLabels} = await buildTaskFromQuickAddTitle({title, projectId})
+				if (dueDate && !task.dueDate) {
+					task.dueDate = dueDate
+				}
 				return {task, parsedLabels}
 			}))
 

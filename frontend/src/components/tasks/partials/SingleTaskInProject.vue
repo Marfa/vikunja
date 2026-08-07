@@ -26,18 +26,18 @@
 			</span>
 
 			<ColorBubble
-				v-if="!showProjectSeparately && projectColor !== '' && currentProject?.id !== task.projectId"
+				v-if="!isTodoistLayout && !showProjectSeparately && projectColor !== '' && currentProject?.id !== task.projectId"
 				:color="projectColor"
 				class="mie-1"
 			/>
 
 			<div
-				:class="{ 'done': task.done, 'show-project': showProject && project}"
+				:class="{ 'done': task.done, 'show-project': showProject && project && !isTodoistLayout}"
 				class="tasktext"
 			>
 				<span class="is-inline-flex is-align-items-center">
 					<RouterLink
-						v-if="showProject && typeof project !== 'undefined'"
+						v-if="showProject && typeof project !== 'undefined' && !isTodoistLayout"
 						v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
 						:to="{ name: 'project.index', params: { projectId: task.projectId } }"
 						class="task-project mie-1"
@@ -48,7 +48,7 @@
 					</RouterLink>
 
 					<ColorBubble
-						v-if="task.hexColor !== ''"
+						v-if="task.hexColor !== '' && !isTodoistLayout"
 						:color="getHexColor(task.hexColor)"
 						class="mie-1"
 					/>
@@ -85,7 +85,7 @@
 				/>
 
 				<Popup
-					v-if="+new Date(task.dueDate) > 0"
+					v-if="+new Date(task.dueDate) > 0 && !isTodoistLayout"
 				>
 					<template #trigger="{toggle, isOpen}">
 						<BaseButton
@@ -147,14 +147,26 @@
 				is-small
 			/>
 
+			<RouterLink
+				v-if="isTodoistLayout && typeof project !== 'undefined'"
+				v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
+				:to="{ name: 'project.index', params: { projectId: task.projectId } }"
+				class="task-project-hash"
+				:style="projectColor ? {color: projectColor} : undefined"
+				@click.stop
+			>
+				{{ todoistProjectLabel }}
+				<span aria-hidden="true">#</span>
+			</RouterLink>
+
 			<ColorBubble
-				v-if="showProjectSeparately && projectColor !== '' && currentProject?.id !== task.projectId"
+				v-if="!isTodoistLayout && showProjectSeparately && projectColor !== '' && currentProject?.id !== task.projectId"
 				:color="projectColor"
 				class="mie-1"
 			/>
 
 			<RouterLink
-				v-if="showProjectSeparately"
+				v-if="showProjectSeparately && !isTodoistLayout"
 				v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
 				:to="{ name: 'project.index', params: { projectId: task.projectId } }"
 				class="task-project"
@@ -164,6 +176,7 @@
 			</RouterLink>
 
 			<BaseButton
+				v-if="!isTodoistLayout"
 				:class="{'is-favorite': task.isFavorite}"
 				class="favorite"
 				@click.stop="toggleFavorite"
@@ -203,6 +216,7 @@ import {useI18n} from 'vue-i18n'
 
 import TaskModel, {getHexColor} from '@/models/task'
 import type {ITask} from '@/modelTypes/ITask'
+import type {IProject} from '@/modelTypes/IProject'
 
 import PriorityLabel from '@/components/tasks/partials/PriorityLabel.vue'
 import Labels from '@/components/tasks/partials/Labels.vue'
@@ -231,6 +245,8 @@ import {playPopSound} from '@/helpers/playPop'
 import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
 import {useGlobalNow} from '@/composables/useGlobalNow'
+import {useUiSkin} from '@/composables/useUiSkin'
+import {getProjectTitle} from '@/helpers/getProjectTitle'
 
 const props = withDefaults(defineProps<{
 	theTask: ITask,
@@ -251,6 +267,9 @@ const emit = defineEmits<{
 	'taskUpdated': [task: ITask],
 }>()
 
+const {isTodoist} = useUiSkin()
+const isTodoistLayout = computed(() => isTodoist.value)
+
 function getTaskById(taskId: number): ITask | undefined {
 	if (typeof props.allTasks === 'undefined' || props.allTasks.length === 0) {
 		return null
@@ -264,7 +283,7 @@ const {t} = useI18n({useScope: 'global'})
 const taskService = shallowReactive(new TaskService())
 const task = ref<ITask>(new TaskModel())
 
-const isRepeating = computed(() => task.value.repeatAfter.amount > 0 || (task.value.repeatAfter.amount === 0 && task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH))
+const isRepeating = computed(() => task.value.repeatAfter.amount > 0 || (task.value.repeatAfter.amount === 0 && (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH || task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS)))
 
 watch(
 	() => props.theTask,
@@ -283,6 +302,7 @@ const taskStore = useTaskStore()
 
 const project = computed(() => projectStore.projects[task.value.projectId])
 const projectColor = computed(() => project.value ? project.value?.hexColor : '')
+const todoistProjectLabel = computed(() => project.value ? getProjectTitle(project.value as IProject) : '')
 
 const showProjectSeparately = computed(() => !props.showProject && currentProject.value?.id !== task.value.projectId && project.value)
 
@@ -478,6 +498,25 @@ defineExpose({
 		color: var(--grey-400);
 		font-size: .9rem;
 		white-space: nowrap;
+	}
+
+	.task-project-hash {
+		inline-size: auto;
+		margin-inline-start: auto;
+		padding-inline-start: 0.75rem;
+		font-size: .85rem;
+		white-space: nowrap;
+		flex-shrink: 0;
+		color: inherit;
+
+		&:not([style]) {
+			color: var(--text-muted);
+		}
+
+		span {
+			margin-inline-start: 0.15rem;
+			font-weight: 700;
+		}
 	}
 
 	.avatar {

@@ -29,8 +29,14 @@
 					class="collapse-project-button-placeholder"
 				/>
 				<div class="color-bubble-wrapper">
+					<span
+						v-if="isTodoist && project.hexColor !== ''"
+						class="project-color-hash"
+						:style="{color: project.hexColor}"
+						aria-hidden="true"
+					>#</span>
 					<ColorBubble
-						v-if="project.hexColor !== ''"
+						v-else-if="project.hexColor !== ''"
 						:color="project.hexColor"
 						:aria-label="$t('project.color')"
 					/>
@@ -106,6 +112,7 @@ import ColorBubble from '@/components/misc/ColorBubble.vue'
 import ProjectsNavigation from '@/components/home/ProjectsNavigation.vue'
 import {PERMISSIONS} from '@/constants/permissions'
 import {isSavedFilter} from '@/services/savedFilter'
+import {useUiSkin} from '@/composables/useUiSkin'
 
 const props = defineProps<{
 	project: IProject,
@@ -113,6 +120,8 @@ const props = defineProps<{
 	canCollapse?: boolean,
 	canEditOrder?: boolean,
 }>()
+
+const {isTodoist} = useUiSkin()
 
 const taskStore = useTaskStore()
 const isHoveredDuringDrag = ref(false)
@@ -227,7 +236,8 @@ const canToggleFavorite = computed(() => {
 	opacity: 1;
 }
 
-.list-menu:hover .color-bubble-wrapper > .color-bubble {
+.list-menu:hover .color-bubble-wrapper > .color-bubble,
+.list-menu:hover .color-bubble-wrapper > .project-color-hash {
 	opacity: 0;
 }
 

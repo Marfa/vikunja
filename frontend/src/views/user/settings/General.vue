@@ -180,6 +180,15 @@
 				/>
 			</FormField>
 			<FormField
+				:label="$t('user.settings.appearance.uiSkin.title')"
+				layout="two-col"
+			>
+				<FormSelect
+					v-model="settings.frontendSettings.uiSkin"
+					:options="uiSkinOptions"
+				/>
+			</FormField>
+			<FormField
 				:label="$t('user.settings.quickAddMagic.title')"
 				layout="two-col"
 			>
@@ -387,6 +396,11 @@ const colorSchemeOptions = computed(() => [
 	{value: 'dark', label: t('user.settings.appearance.colorScheme.dark')},
 ])
 
+const uiSkinOptions = computed(() => [
+	{value: 'default', label: t('user.settings.appearance.uiSkin.default')},
+	{value: 'todoist', label: t('user.settings.appearance.uiSkin.todoist')},
+])
+
 const quickAddMagicModeOptions = computed(() =>
 	(Object.values(PrefixMode) as PrefixMode[]).map(mode => ({
 		value: mode,
@@ -423,6 +437,7 @@ const settings = ref<IUserSettings>({
 		minimumPriority: authStore.settings.frontendSettings.minimumPriority ?? PRIORITIES.MEDIUM,
 		// Add fallback for old settings that don't have the logo change setting set
 		allowIconChanges: authStore.settings.frontendSettings.allowIconChanges ?? true,
+		uiSkin: authStore.settings.frontendSettings.uiSkin ?? 'default',
 		dateDisplay: authStore.settings.frontendSettings.dateDisplay ?? DATE_DISPLAY.RELATIVE,
 		// Add fallback for old settings that don't have the time format set
 		timeFormat: authStore.settings.frontendSettings.timeFormat ?? TIME_FORMAT.HOURS_12,

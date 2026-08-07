@@ -2,10 +2,21 @@
 	<div
 		v-cy="'showTasks'"
 		class="is-max-width-desktop has-text-start"
+		:class="{'todoist-upcoming': useTodoistList}"
 	>
-		<h2 class="mbe-2 title">
+		<h2
+			v-if="!hideTitle"
+			class="mbe-2 title"
+		>
 			{{ pageTitle }}
 		</h2>
+
+		<UpcomingWeekStrip
+			v-if="useTodoistUpcoming"
+			:selected="selectedStripDay"
+			@select="scrollToDay"
+		/>
+
 		<Message
 			v-if="filteredLabels.length > 0"
 			class="label-filter-info mbe-2"
@@ -39,7 +50,7 @@
 			{{ $t('task.show.savedFilterIgnored') }}
 		</Message>
 		<p
-			v-if="!showAll"
+			v-if="!showAll && !useTodoistList"
 			class="show-tasks-options"
 		>
 			<DatepickerWithRange @update:modelValue="setDate">
@@ -68,39 +79,54 @@
 				{{ $t('task.show.overdue') }}
 			</FancyCheckbox>
 		</p>
-		<template v-if="!loading && (!tasks || tasks.length === 0) && showNothingToDo">
+		<template v-if="!loading && (!tasks || tasks.length === 0) && showNothingToDo && !useTodoistList">
 			<h3 class="has-text-centered mbs-6">
 				{{ $t('task.show.noTasks') }}
 			</h3>
 			<LlamaCool class="llama-cool" />
 		</template>
 
-		<Card
-			v-if="hasTasks"
-			:padding="false"
-			class="has-overflow"
-			:has-content="false"
-			:loading="loading"
-		>
-			<ul class="p-2 tasks">
-				<li
-					v-for="task in tasks"
-					:key="task.id"
-				>
-					<SingleTaskInProject
-						:show-project="true"
-						:the-task="task"
-						:can-mark-as-done="(projectStore.projects[task.projectId]?.maxPermission ?? 0) > PERMISSIONS.READ"
-						@taskUpdated="updateTasks"
-					/>
-				</li>
-			</ul>
-		</Card>
-		<div
-			v-else
-			:class="{ 'is-loading': loading}"
-			class="spinner"
-		/>
+		<template v-if="useTodoistList">
+			<TodoistTaskDayGroups
+				:groups="taskGroups"
+				:all-tasks="tasks"
+				@taskUpdated="updateTasks"
+				@tasksAdded="onTasksAdded"
+			/>
+			<div
+				v-if="loading"
+				class="spinner is-loading"
+			/>
+		</template>
+
+		<template v-else>
+			<Card
+				v-if="hasTasks"
+				:padding="false"
+				class="has-overflow"
+				:has-content="false"
+				:loading="loading"
+			>
+				<ul class="p-2 tasks">
+					<li
+						v-for="task in tasks"
+						:key="task.id"
+					>
+						<SingleTaskInProject
+							:show-project="true"
+							:the-task="task"
+							:can-mark-as-done="(projectStore.projects[task.projectId]?.maxPermission ?? 0) > PERMISSIONS.READ"
+							@taskUpdated="updateTasks"
+						/>
+					</li>
+				</ul>
+			</Card>
+			<div
+				v-else
+				:class="{ 'is-loading': loading}"
+				class="spinner"
+			/>
+		</template>
 	</div>
 </template>
 
@@ -108,9 +134,11 @@
 import {computed, ref, watch, watchEffect} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
+import dayjs from 'dayjs'
 
 import {formatDate} from '@/helpers/time/formatDate'
 import {setTitle} from '@/helpers/setTitle'
+import {groupTasksByDueDay} from '@/helpers/todoistTaskGroups'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
@@ -119,6 +147,8 @@ import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
 import DatepickerWithRange from '@/components/date/DatepickerWithRange.vue'
 import XLabel from '@/components/tasks/partials/Label.vue'
+import TodoistTaskDayGroups from '@/components/tasks/TodoistTaskDayGroups.vue'
+import UpcomingWeekStrip from '@/components/tasks/UpcomingWeekStrip.vue'
 import {DATE_RANGES} from '@/components/date/dateRanges'
 import LlamaCool from '@/assets/llama-cool.svg?component'
 import type {ITask} from '@/modelTypes/ITask'
@@ -129,6 +159,7 @@ import {useLabelStore} from '@/stores/labels'
 import type {TaskFilterParams} from '@/services/taskCollection'
 import TaskCollectionService from '@/services/taskCollection'
 import {PERMISSIONS} from '@/constants/permissions'
+import {useUiSkin} from '@/composables/useUiSkin'
 
 const props = withDefaults(defineProps<{
 	dateFrom?: Date | string,
@@ -136,12 +167,14 @@ const props = withDefaults(defineProps<{
 	showNulls?: boolean,
 	showOverdue?: boolean,
 	labelIds?: string[],
+	hideTitle?: boolean,
 }>(), {
 	showNulls: false,
 	showOverdue: false,
 	dateFrom: undefined,
 	dateTo: undefined,
 	labelIds: undefined,
+	hideTitle: false,
 })
 
 const emit = defineEmits<{
@@ -153,6 +186,7 @@ const authStore = useAuthStore()
 const taskStore = useTaskStore()
 const projectStore = useProjectStore()
 const labelStore = useLabelStore()
+const {isTodoist} = useUiSkin()
 
 const route = useRoute()
 const router = useRouter()
@@ -161,10 +195,13 @@ const {t} = useI18n({useScope: 'global'})
 const tasks = ref<ITask[]>([])
 const showNothingToDo = ref<boolean>(false)
 const taskCollectionService = ref(new TaskCollectionService())
+const selectedStripDay = ref<Date>(new Date())
 
 setTimeout(() => showNothingToDo.value = true, 100)
 
 const showAll = computed(() => typeof props.dateFrom === 'undefined' || typeof props.dateTo === 'undefined')
+const useTodoistList = computed(() => isTodoist.value)
+const useTodoistUpcoming = computed(() => isTodoist.value && !showAll.value)
 
 const filteredLabels = computed(() => {
 	if (!props.labelIds || props.labelIds.length === 0) {
@@ -182,7 +219,13 @@ const savedFilterIgnored = computed(() => {
 })
 
 const pageTitle = computed(() => {
-	// We need to define "key" because it is the first parameter in the array and we need the second
+	if (useTodoistUpcoming.value) {
+		return t('navigation.upcoming')
+	}
+	if (useTodoistList.value && showAll.value) {
+		return t('navigation.today')
+	}
+
 	const predefinedRange = Object.entries(DATE_RANGES)
 		.find(([, value]) => props.dateFrom === value[0] && props.dateTo === value[1])
 		?.[0]
@@ -197,10 +240,22 @@ const pageTitle = computed(() => {
 			until: formatDate(props.dateTo, 'LL'),
 		})
 })
-const hasTasks = computed(() => tasks.value && tasks.value.length > 0)
+const hasTasks = computed(() => Boolean(tasks.value?.length))
 const userAuthenticated = computed(() => authStore.authenticated)
 const loading = computed(() => taskStore.isLoading || taskCollectionService.value.loading)
 const filterIdUsedOnOverview = computed(() => authStore.settings?.frontendSettings?.filterIdUsedOnOverview)
+
+const taskGroups = computed(() => {
+	if (!useTodoistList.value) {
+		return []
+	}
+	return groupTasksByDueDay(tasks.value, {
+		fillRange: showAll.value
+			? null
+			: {from: props.dateFrom!, to: props.dateTo!},
+		includeNoDate: showAll.value || props.showNulls,
+	})
+})
 
 interface dateStrings {
 	dateFrom: string,
@@ -243,11 +298,18 @@ function clearLabelFilter() {
 	emit('clearLabelFilter')
 }
 
+function scrollToDay(date: Date) {
+	selectedStripDay.value = date
+	const key = dayjs(date).format('YYYY-MM-DD')
+	const el = document.getElementById(`todoist-day-${key}`)
+	el?.scrollIntoView({behavior: 'smooth', block: 'start'})
+}
+
+async function onTasksAdded() {
+	await loadPendingTasks(props.dateFrom as Date|string, props.dateTo as Date|string, filterIdUsedOnOverview.value)
+}
+
 async function loadPendingTasks(from: Date|string, to: Date|string, filterId: number | null | undefined) {
-	// FIXME: HACK! This should never happen.
-	// Since this route is authentication only, users would get an error message if they access the page unauthenticated.
-	// Since this component is mounted as the home page before unauthenticated users get redirected
-	// to the login page, they will almost always see the error message.
 	if (!userAuthenticated.value) {
 		return
 	}
@@ -256,24 +318,20 @@ async function loadPendingTasks(from: Date|string, to: Date|string, filterId: nu
 		sort_by: ['due_date', 'id'],
 		order_by: ['asc', 'desc'],
 		filter: 'done = false',
-		filter_include_nulls: props.showNulls,
+		filter_include_nulls: props.showNulls || showAll.value,
 		s: '',
 		expand: ['comment_count', 'is_unread'],
 	}
 
 	if (!showAll.value) {
-
 		params.filter += ` && due_date < '${to instanceof Date ? to.toISOString() : to}'`
 
-		// NOTE: Ideally we could also show tasks with a start or end date in the specified range, but the api
-		//       is not capable (yet) of combining multiple filters with 'and' and 'or'.
-
-		if (!props.showOverdue) {
-			params.filter += ` && due_date > '${from instanceof Date ? from.toISOString() : from}'`
+		// Todoist skin hides "show overdue"; always include past-due like Todoist Upcoming.
+		if (!props.showOverdue && !useTodoistUpcoming.value) {
+			params.filter += ` && due_date >= '${from instanceof Date ? from.toISOString() : from}'`
 		}
 	}
 
-	// Add label filtering
 	if (props.labelIds && props.labelIds.length > 0) {
 		const labelFilter = `labels in ${props.labelIds.join(', ')}`
 		params.filter += params.filter ? ` && ${labelFilter}` : labelFilter
@@ -289,12 +347,10 @@ async function loadPendingTasks(from: Date|string, to: Date|string, filterId: nu
 	emit('tasksLoaded', true)
 }
 
-// FIXME: this modification should happen in the store
 function updateTasks(updatedTask: ITask) {
 	for (let t = 0; t < tasks.value.length; t++) {
 		if (tasks.value[t].id === updatedTask.id) {
 			tasks.value[t] = updatedTask
-			// Move the task to the end of the done tasks if it is now done
 			if (updatedTask.done) {
 				tasks.value.splice(t, 1)
 				tasks.value.push(updatedTask)
@@ -304,15 +360,16 @@ function updateTasks(updatedTask: ITask) {
 	}
 }
 
-// Use watch instead of watchEffect to prevent reloading tasks when unrelated settings change.
-// watchEffect would track all reactive dependencies accessed inside loadPendingTasks,
-// which includes the entire settings object. When sidebarWidth changes, the settings
-// object is replaced, triggering the watchEffect even though filterIdUsedOnOverview
-// hasn't changed. Using watch with explicit dependencies and immediate:true gives us
-// the same behavior but only triggers when these specific values actually change.
 watch(
-	[() => props.dateFrom, () => props.dateTo, filterIdUsedOnOverview],
-	([from, to, filterId]) => loadPendingTasks(from, to, filterId),
+	[
+		() => props.dateFrom,
+		() => props.dateTo,
+		() => props.showOverdue,
+		() => props.showNulls,
+		filterIdUsedOnOverview,
+		useTodoistUpcoming,
+	],
+	() => loadPendingTasks(props.dateFrom as Date|string, props.dateTo as Date|string, filterIdUsedOnOverview.value),
 	{immediate: true},
 )
 watchEffect(() => setTitle(pageTitle.value))
@@ -352,6 +409,14 @@ watchEffect(() => setTitle(pageTitle.value))
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
+	}
+}
+
+.todoist-upcoming {
+	.title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin-block-end: 1rem;
 	}
 }
 </style>

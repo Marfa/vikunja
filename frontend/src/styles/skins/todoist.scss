@@ -1,0 +1,114 @@
+// Todoist-like UI skin — activated via html.todoist (useUiSkin)
+html.todoist {
+	// Palette (light). Dark mode keeps Vikunja dark tokens; layout rules below still apply.
+	&:not(.dark) {
+		--primary-h: 0deg;
+		--primary-s: 79%;
+		--primary-l: 63%;
+		--primary-hsl: var(--primary-h), var(--primary-s), var(--primary-l);
+		--primary: hsla(var(--primary-h), var(--primary-s), var(--primary-l), var(--primary-a));
+		--link: var(--primary);
+		--link-hover: hsla(var(--primary-h), var(--primary-s), 55%, 1);
+		--site-background: #fafafa;
+		--scheme-main: #ffffff;
+		--text: #202020;
+		--text-strong: #202020;
+		--text-light: #808080;
+		--text-muted: #808080;
+		--border: #ececec;
+		--card-border-color: transparent;
+		--shadow-xs: none;
+		--shadow-sm: none;
+		--shadow-md: 0 1px 2px rgba(0, 0, 0, 0.06);
+		--shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+	}
+
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+	h1, h2, h3, h4, h5, h6,
+	.title,
+	.menu-container .top-menu .menu-list li {
+		font-family: inherit;
+	}
+
+	// Sidebar active = gray pill (not primary text)
+	.menu-container {
+		.menu-list {
+			li > a.router-link-exact-active,
+			.list-menu-link.router-link-exact-active {
+				background: rgba(0, 0, 0, 0.06);
+				border-radius: 8px;
+				color: var(--text-strong);
+				font-weight: 600;
+
+				.menu-item-icon {
+					color: var(--text-strong);
+				}
+			}
+
+			&.other-menu-items li,
+			li > div {
+				height: 36px;
+				margin-inline: 0.5rem;
+				border-radius: 8px;
+
+				&:hover {
+					background: rgba(0, 0, 0, 0.04);
+				}
+			}
+
+			.list-menu-link,
+			li > a {
+				border-radius: 8px;
+				padding-block: 0.4rem;
+			}
+		}
+
+		.top-menu .menu-list {
+			.list-menu-link,
+			li > a {
+				padding-inline-start: 0.75rem;
+				display: flex;
+				align-items: center;
+				width: 100%;
+			}
+		}
+	}
+
+	// Soft task chrome
+	.single-task.task {
+		border: none;
+		box-shadow: none;
+		padding-block: 0.65rem;
+		border-radius: 0;
+		border-bottom: 1px solid var(--border);
+
+		&:hover {
+			background: transparent;
+		}
+	}
+
+	.card,
+	.has-overflow.card {
+		box-shadow: none;
+		border: none;
+		background: transparent;
+	}
+
+	.fancy-checkbox.is-circle input:focus-visible + .fancy-checkbox__icon,
+	.fancy-checkbox.is-circle input:focus + .fancy-checkbox__icon {
+		border-radius: 50%;
+	}
+
+	// Project hash mark in sidebar
+	.project-color-hash {
+		font-weight: 700;
+		font-size: 1.05rem;
+		line-height: 1;
+		margin-inline-end: 0.4rem;
+		margin-inline-start: 0.15rem;
+		flex-shrink: 0;
+		width: 1rem;
+		text-align: center;
+	}
+}

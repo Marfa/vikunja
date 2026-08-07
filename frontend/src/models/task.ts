@@ -13,6 +13,7 @@ import type {IRelationKind} from '@/types/IRelationKind'
 import {TASK_REPEAT_MODES, type IRepeatMode} from '@/types/IRepeatMode'
 
 import {parseDateOrNull} from '@/helpers/parseDateOrNull'
+import {resolveDateOnlyDue} from '@/helpers/time/resolveDateOnlyDue'
 import {secondsToPeriod} from '@/helpers/time/period'
 
 import AbstractModel from './abstractModel'
@@ -118,6 +119,9 @@ export default class TaskModel extends AbstractModel<ITask> implements ITask {
 		})
 
 		this.dueDate = parseDateOrNull(this.dueDate)
+		if (this.dueDate) {
+			this.dueDate = resolveDateOnlyDue(this.dueDate)
+		}
 		this.startDate = parseDateOrNull(this.startDate)
 		this.endDate = parseDateOrNull(this.endDate)
 

@@ -151,6 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
 				playSoundWhenDone: true,
 				quickAddMagicMode: PrefixMode.Default,
 				colorSchema: 'auto',
+				uiSkin: 'default',
 				allowIconChanges: true,
 				dateDisplay: DATE_DISPLAY.RELATIVE,
 				timeFormat: TIME_FORMAT.HOURS_24,

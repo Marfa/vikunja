@@ -1,6 +1,9 @@
 <template>
-	<div class="content has-text-centered">
-		<h1 v-if="salutation">
+	<div
+		class="content"
+		:class="isTodoist ? 'has-text-start' : 'has-text-centered'"
+	>
+		<h1 v-if="salutation && !isTodoist">
 			{{ salutation }}
 		</h1>
 
@@ -20,12 +23,13 @@
 			</RouterLink>
 		</Message>
 		<AddTask
+			v-if="!isTodoist"
 			class="is-max-width-desktop"
 			@tasksAdded="updateTaskKey"
 		/>
 		<ImportHint v-if="tasksLoaded" />
 		<div
-			v-if="authStore.settings.frontendSettings.showLastViewed !== false && projectHistory.length > 0"
+			v-if="!isTodoist && authStore.settings.frontendSettings.showLastViewed !== false && projectHistory.length > 0"
 			class="is-max-width-desktop has-text-start mbs-4"
 		>
 			<h2>{{ $t('home.lastViewed') }}</h2>
@@ -39,6 +43,7 @@
 			v-if="projectStore.hasProjects"
 			:key="showTasksKey"
 			:label-ids="labelIds"
+			:hide-title="false"
 			class="show-tasks"
 			@tasksLoaded="tasksLoaded = true"
 			@clearLabelFilter="handleClearLabelFilter"
@@ -63,11 +68,13 @@ import {useDaytimeSalutation} from '@/composables/useDaytimeSalutation'
 
 import {useProjectStore} from '@/stores/projects'
 import {useAuthStore} from '@/stores/auth'
+import {useUiSkin} from '@/composables/useUiSkin'
 
 const salutation = useDaytimeSalutation()
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+const {isTodoist} = useUiSkin()
 const route = useRoute()
 const router = useRouter()
 

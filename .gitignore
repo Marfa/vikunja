@@ -1,6 +1,7 @@
 .idea/
 .idea/*/*
 .idea/httpRequests
+.cursor/
 config.yml
 config.yaml
 config.yml.sample

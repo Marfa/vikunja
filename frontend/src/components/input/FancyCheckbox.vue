@@ -4,13 +4,21 @@
 		:class="{
 			'is-disabled': disabled,
 			'is-block': isBlock,
+			'is-circle': isTodoist,
 		}"
 		:disabled="disabled"
 		:model-value="modelValue"
 		:aria-label="ariaLabel"
 		@update:modelValue="value => emit('update:modelValue', value)"
 	>
-		<CheckboxIcon class="fancy-checkbox__icon" />
+		<CheckboxCircleIcon
+			v-if="isTodoist"
+			class="fancy-checkbox__icon"
+		/>
+		<CheckboxIcon
+			v-else
+			class="fancy-checkbox__icon"
+		/>
 		<span
 			v-if="$slots.default"
 			class="fancy-checkbox__content"
@@ -22,7 +30,9 @@
 
 <script setup lang="ts">
 import CheckboxIcon from '@/assets/checkbox.svg?component'
+import CheckboxCircleIcon from '@/assets/checkbox-circle.svg?component'
 import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
+import {useUiSkin} from '@/composables/useUiSkin'
 
 withDefaults(defineProps<{
 	modelValue: boolean,
@@ -38,6 +48,8 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
 	'update:modelValue': [value: boolean]
 }>()
+
+const {isTodoist} = useUiSkin()
 </script>
 
 <style lang="scss" scoped>
@@ -66,6 +78,7 @@ const emit = defineEmits<{
 	transition: all 0.2s ease;
 
 	path,
+	circle,
 	polyline {
 		transition: all 0.2s linear, color 0.2s ease;
 	}
@@ -94,13 +107,15 @@ const emit = defineEmits<{
 // the following rules can't be scoped
 
 .fancy-checkbox :not(input:checked) + .fancy-checkbox__icon {
-	path {
+	path,
+	circle {
 		transition-delay: 0.05s;
 	}
 }
 
 .fancy-checkbox input:checked + .fancy-checkbox__icon {
-	path {
+	path,
+	circle {
 		stroke-dashoffset: 60;
 	}
 

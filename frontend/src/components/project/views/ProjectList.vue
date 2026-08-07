@@ -22,10 +22,28 @@
 
 		<template #default>
 			<div
-				:class="{ 'is-loading': loading }"
+				:class="{ 'is-loading': loading, 'is-todoist-list': isTodoist }"
 				class="loader-container is-max-width-desktop list-view"
 			>
+				<template v-if="isTodoist">
+					<Nothing v-if="ctaVisible && tasks.length === 0 && !loading">
+						{{ $t('project.list.empty') }}
+					</Nothing>
+					<TodoistTaskDayGroups
+						v-else-if="tasks.length > 0 || !loading"
+						:groups="todoistGroups"
+						:all-tasks="allTasks"
+						:show-add="!project?.isArchived && canWrite"
+						@taskUpdated="updateTasks"
+						@tasksAdded="updateTaskList"
+					/>
+					<Pagination
+						:total-pages="totalPages"
+						:current-page="currentPage"
+					/>
+				</template>
 				<Card
+					v-else
 					:padding="false"
 					:has-content="false"
 					class="has-overflow"
@@ -107,6 +125,7 @@ import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
 import ButtonLink from '@/components/misc/ButtonLink.vue'
 import AddTask from '@/components/tasks/AddTask.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
+import TodoistTaskDayGroups from '@/components/tasks/TodoistTaskDayGroups.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'
 import Nothing from '@/components/misc/Nothing.vue'
 import Pagination from '@/components/misc/Pagination.vue'
@@ -115,6 +134,8 @@ import SortPopup from '@/components/project/partials/SortPopup.vue'
 import {useTaskList} from '@/composables/useTaskList'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
 import {shouldShowTaskInListView} from '@/composables/useTaskListFiltering'
+import {groupTasksByDueDay} from '@/helpers/todoistTaskGroups'
+import {useUiSkin} from '@/composables/useUiSkin'
 import {PERMISSIONS as Permissions} from '@/constants/permissions'
 import {calculateItemPosition} from '@/helpers/calculateItemPosition'
 import type {ITask} from '@/modelTypes/ITask'
@@ -177,8 +198,14 @@ const isPositionSorting = computed(() => 'position' in sortByParam.value)
 
 const baseStore = useBaseStore()
 const taskStore = useTaskStore()
+const {isTodoist} = useUiSkin()
 const {handleTaskDropToProject} = useTaskDragToProject()
 const project = computed(() => baseStore.currentProject)
+
+const todoistGroups = computed(() => groupTasksByDueDay(tasks.value, {
+	fillRange: null,
+	includeNoDate: true,
+}))
 
 const canWrite = computed(() => {
 	return project.value?.maxPermission > Permissions.READ && project.value?.id > 0
@@ -386,6 +413,10 @@ onBeforeUnmount(() => {
 
 .list-view__add-task {
 	padding: 1rem 1rem 0;
+}
+
+.list-view.is-todoist-list {
+	text-align: start;
 }
 
 .link-share-view .card {

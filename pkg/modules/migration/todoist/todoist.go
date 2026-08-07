@@ -234,13 +234,25 @@ func (m *Migration) AuthURL() string {
 		"&state=" + state
 }
 
-func parseDate(dateString string) (date time.Time, err error) {
+func userTimezone(u *user.User) *time.Location {
+	if u != nil && u.Timezone != "" {
+		if loc, err := time.LoadLocation(u.Timezone); err == nil {
+			return loc
+		}
+	}
+	return config.GetTimeZone()
+}
+
+func parseDate(dateString string, loc *time.Location) (date time.Time, err error) {
+	if loc == nil {
+		loc = config.GetTimeZone()
+	}
 	if len(dateString) == 10 {
-		// We're probably dealing with a date in the form of 2021-11-23 without a time
-		date, err = time.Parse("2006-01-02", dateString)
+		// Date-only (2021-11-23): end of that calendar day in the user's timezone.
+		// Parsing as UTC EOD shifts the day forward for every UTC+ zone.
+		date, err = time.ParseInLocation("2006-01-02", dateString, loc)
 		if err == nil {
-			// round the day to eod
-			return date.Add(time.Hour*23 + time.Minute*59), nil
+			return time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 0, 0, loc), nil
 		}
 	}
 
@@ -249,7 +261,7 @@ func parseDate(dateString string) (date time.Time, err error) {
 		date, err = time.Parse("2006-01-02T15:04:05", dateString)
 	}
 	if err != nil {
-		date, err = time.Parse("2006-01-02", dateString)
+		date, err = time.ParseInLocation("2006-01-02", dateString, loc)
 	}
 
 	return date, err
@@ -321,7 +333,10 @@ func parseTodoistRepeat(due *dueDate) int64 {
 	return interval * repeatUnitSeconds[matches[3]]
 }
 
-func convertTodoistToVikunja(sync *sync, doneItems map[string]*doneItem) (fullVikunjaHierachie []*models.ProjectWithTasksAndBuckets, err error) {
+func convertTodoistToVikunja(sync *sync, doneItems map[string]*doneItem, loc *time.Location) (fullVikunjaHierachie []*models.ProjectWithTasksAndBuckets, err error) {
+	if loc == nil {
+		loc = config.GetTimeZone()
+	}
 
 	var pseudoParentID int64 = 1
 
@@ -421,11 +436,11 @@ func convertTodoistToVikunja(sync *sync, doneItems map[string]*doneItem) (fullVi
 
 		// Put the due date together
 		if i.Due != nil {
-			dueDate, err := parseDate(i.Due.Date)
+			dueDate, err := parseDate(i.Due.Date, loc)
 			if err != nil {
 				return nil, err
 			}
-			task.DueDate = dueDate.In(config.GetTimeZone())
+			task.DueDate = dueDate
 			task.RepeatAfter = parseTodoistRepeat(i.Due)
 		}
 
@@ -542,13 +557,13 @@ func convertTodoistToVikunja(sync *sync, doneItems map[string]*doneItem) (fullVi
 			continue
 		}
 
-		date, err := parseDate(r.Due.Date)
+		date, err := parseDate(r.Due.Date, loc)
 		if err != nil {
 			return nil, err
 		}
 
 		tasks[r.ItemID].Reminders = append(tasks[r.ItemID].Reminders, &models.TaskReminder{
-			Reminder: date.In(config.GetTimeZone()),
+			Reminder: date,
 		},
 		)
 	}
@@ -777,7 +792,7 @@ func (m *Migration) Migrate(u *user.User) (err error) {
 	log.Debugf("[Todoist Migration] Got all todoist user data for user %d", u.ID)
 	log.Debugf("[Todoist Migration] Start converting data for user %d", u.ID)
 
-	fullVikunjaHierachie, err := convertTodoistToVikunja(syncResponse, doneItems)
+	fullVikunjaHierachie, err := convertTodoistToVikunja(syncResponse, doneItems, userTimezone(u))
 	if err != nil {
 		return
 	}
