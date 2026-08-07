@@ -470,6 +470,15 @@
 								task.isFavorite ? $t('task.detail.actions.unfavorite') : $t('task.detail.actions.favorite')
 							}}
 						</XButton>
+						<XButton
+							v-shortcut="deleteShortcut"
+							icon="trash-alt"
+							:shadow="false"
+							class="is-danger is-outlined has-no-border"
+							@click="showDeleteModal = true"
+						>
+							{{ $t('task.detail.actions.delete') }}
+						</XButton>
 						
 						<span class="action-heading">{{ $t('task.detail.organization') }}</span>
 						
@@ -597,15 +606,6 @@
 							@click="setFieldActive('repeatAfter')"
 						>
 							{{ $t('task.detail.actions.repeatAfter') }}
-						</XButton>
-						<XButton
-							v-shortcut="deleteShortcut"
-							icon="trash-alt"
-							:shadow="false"
-							class="is-danger is-outlined has-no-border"
-							@click="showDeleteModal = true"
-						>
-							{{ $t('task.detail.actions.delete') }}
 						</XButton>
 					</template>
 

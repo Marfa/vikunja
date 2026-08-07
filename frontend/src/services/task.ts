@@ -92,6 +92,8 @@ export default class TaskService extends AbstractService<ITask> {
 		}
 		model.repeatAfter = repeatAfterSeconds
 
+		model.repeatMode = Number(model.repeatMode)
+
 		model.hexColor = colorFromHex(model.hexColor)
 
 		// Do the same for all related tasks

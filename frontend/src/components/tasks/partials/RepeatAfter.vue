@@ -1,48 +1,48 @@
 <template>
 	<div class="control repeat-after-input">
-		<div class="button-group mbs-2">
+		<div class="preset-list mbs-2">
 			<XButton
 				variant="secondary"
-				class="is-small"
+				class="is-small preset"
 				@click="() => setRepeatAfter(1, 'days')"
 			>
 				{{ $t('task.repeat.everyDay') }}
 			</XButton>
 			<XButton
 				variant="secondary"
-				class="is-small"
+				class="is-small preset"
 				@click="setEveryWeekday"
 			>
 				{{ $t('task.repeat.everyWeekday') }}
 			</XButton>
 			<XButton
 				variant="secondary"
-				class="is-small"
+				class="is-small preset"
 				@click="() => setRepeatAfter(1, 'weeks')"
 			>
 				{{ $t('task.repeat.everyWeek') }}
 			</XButton>
 			<XButton
 				variant="secondary"
-				class="is-small"
+				class="is-small preset"
 				@click="() => setRepeatAfter(30, 'days')"
 			>
 				{{ $t('task.repeat.every30d') }}
 			</XButton>
 		</div>
-		<div class="is-flex is-align-items-center mbe-2">
+		<div class="is-flex is-align-items-center mbe-2 mode-row">
 			<label
 				for="repeatMode"
-				class="is-fullwidth"
+				class="mode-label"
 			>
 				{{ $t('task.repeat.mode') }}:
 			</label>
-			<div class="control">
-				<div class="select">
+			<div class="control is-expanded">
+				<div class="select is-fullwidth">
 					<select
 						id="repeatMode"
-						v-model="task.repeatMode"
-						@change="updateData"
+						:value="task.repeatMode"
+						@change="handleModeChange"
 					>
 						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT">
 							{{ $t('misc.default') }}
@@ -61,8 +61,8 @@
 			</div>
 		</div>
 		<div
-			v-if="task.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH && task.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS"
-			class="is-flex"
+			v-if="showIntervalFields"
+			class="is-flex interval-row"
 		>
 			<p class="pis-4">
 				{{ $t('task.repeat.each') }}
@@ -70,7 +70,7 @@
 			<div class="field has-addons is-fullwidth">
 				<div class="control">
 					<input
-						v-model="repeatAfter.amount"
+						v-model.number="repeatAfter.amount"
 						:disabled="disabled || undefined"
 						class="input"
 						:placeholder="$t('task.repeat.specifyAmount')"
@@ -104,12 +104,12 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, watch} from 'vue'
+import {ref, reactive, watch, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import {error} from '@/message'
 
-import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
+import {TASK_REPEAT_MODES, type IRepeatMode} from '@/types/IRepeatMode'
 import type {IRepeatAfter} from '@/types/IRepeatAfter'
 import type {ITask} from '@/modelTypes/ITask'
 import TaskModel from '@/models/task'
@@ -130,7 +130,12 @@ const {t} = useI18n({useScope: 'global'})
 const task = ref<ITask>(new TaskModel())
 const repeatAfter = reactive({
 	amount: 0,
-	type: '',
+	type: 'days' as IRepeatAfter['type'],
+})
+
+const showIntervalFields = computed(() => {
+	const mode = Number(task.value.repeatMode)
+	return mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH && mode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
 })
 
 watch(
@@ -147,33 +152,59 @@ watch(
 	},
 )
 
+function coerceMode(mode: unknown): IRepeatMode {
+	return Number(mode) as IRepeatMode
+}
+
 function updateData() {
-	if (!task.value || 
-		(task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT && repeatAfter.amount === 0) ||
-		(task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE && repeatAfter.amount === 0)
+	if (!task.value) {
+		return
+	}
+
+	task.value.repeatMode = coerceMode(task.value.repeatMode)
+	const mode = task.value.repeatMode
+
+	if (
+		(mode === TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT && repeatAfter.amount === 0) ||
+		(mode === TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE && repeatAfter.amount === 0)
 	) {
 		return
 	}
 
-	if (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT && repeatAfter.amount < 0) {
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT && repeatAfter.amount < 0) {
 		error({message: t('task.repeat.invalidAmount')})
 		return
+	}
+
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS && (!repeatAfter.amount || repeatAfter.amount < 1)) {
+		repeatAfter.amount = 1
+		repeatAfter.type = 'days'
 	}
 
 	Object.assign(task.value.repeatAfter, repeatAfter)
 	emit('update:modelValue', task.value)
 }
 
-function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
-	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
-	Object.assign(repeatAfter, { amount, type})
+function handleModeChange(event: Event) {
+	const select = event.target as HTMLSelectElement
+	task.value.repeatMode = coerceMode(select.value)
+	if (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
+		repeatAfter.amount = 1
+		repeatAfter.type = 'days'
+	}
 	updateData()
 }
 
-/** Every Mon–Fri; interval amount is unused by the API for this mode. */
+function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
+	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+	Object.assign(repeatAfter, {amount, type})
+	updateData()
+}
+
+/** Every Mon–Fri. */
 function setEveryWeekday() {
 	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
-	Object.assign(repeatAfter, { amount: 1, type: 'days'})
+	Object.assign(repeatAfter, {amount: 1, type: 'days'})
 	updateData()
 }
 </script>
@@ -187,19 +218,36 @@ p {
 	min-inline-size: 2rem;
 }
 
-.button-group {
+.preset-list {
 	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.preset {
+	inline-size: 100%;
 	justify-content: center;
-	flex-wrap: wrap;
+	border: 1px solid var(--border) !important;
+	box-shadow: none !important;
+	text-transform: none;
+	font-weight: 600;
+}
 
-	:deep(.button:not(:last-child)) {
-		border-start-end-radius: 0;
-		border-end-end-radius: 0;
-	}
+.mode-row {
+	gap: 0.5rem;
+}
 
-	:deep(.button:not(:first-child)) {
-		border-start-start-radius: 0;
-		border-end-start-radius: 0;
-	}
+.mode-label {
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.interval-row {
+	align-items: center;
+}
+
+.select.is-fullwidth,
+.select.is-fullwidth select {
+	inline-size: 100%;
 }
 </style>

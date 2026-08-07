@@ -127,6 +127,7 @@ export default class TaskModel extends AbstractModel<ITask> implements ITask {
 
 		// Parse the repeat after into something usable
 		this.repeatAfter = parseRepeatAfter(this.repeatAfter as number)
+		this.repeatMode = Number(this.repeatMode) as IRepeatMode
 
 		this.reminders = this.reminders.map(r => new TaskReminderModel(r))
 
