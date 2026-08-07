@@ -288,9 +288,9 @@
 								</div>
 								<RepeatAfter
 									:ref="e => setFieldRef('repeatAfter', e)"
-									v-model="task"
+									:model-value="task"
 									:disabled="!canWrite"
-									@update:modelValue="saveTask()"
+									@update:modelValue="handleRepeatAfterUpdate"
 								/>
 							</div>
 						</CustomTransition>
@@ -652,7 +652,7 @@
 </template>
 
 <script lang="ts" setup>
-import {ref, reactive, shallowReactive, computed, watch, nextTick, onMounted} from 'vue'
+import {ref, reactive, shallowReactive, computed, watch, nextTick, onMounted, toRaw} from 'vue'
 import {useRouter, useRoute, type RouteLocation, onBeforeRouteLeave} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {unrefElement, useDebounceFn, useElementSize, useIntersectionObserver, useMutationObserver} from '@vueuse/core'
@@ -1094,7 +1094,7 @@ async function saveTask(
 	undoCallback?: () => void,
 ) {
 	if (currentTask === null) {
-		currentTask = klona(task.value)
+		currentTask = klona(toRaw(task.value))
 	}
 
 	if (!canWrite.value) {
@@ -1102,6 +1102,7 @@ async function saveTask(
 	}
 
 	currentTask.hexColor = taskColor.value
+	currentTask.repeatMode = Number(currentTask.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES]
 
 	// If no end date is being set, but a start date and due date,
 	// use the due date as the end date
@@ -1125,6 +1126,26 @@ async function saveTask(
 		}]
 	}
 	success({message: t('task.detail.updateSuccess')}, actions)
+}
+
+/** Persist repeat presets without relying on v-model + klona/lite over a Proxy. */
+async function handleRepeatAfterUpdate(updated: ITask | undefined) {
+	if (!updated || !canWrite.value) {
+		return
+	}
+
+	const repeatAfter = typeof updated.repeatAfter === 'object' && updated.repeatAfter !== null
+		? {...updated.repeatAfter}
+		: updated.repeatAfter
+
+	task.value.repeatMode = Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES]
+	task.value.repeatAfter = repeatAfter as ITask['repeatAfter']
+
+	await saveTask({
+		...klona(toRaw(task.value)),
+		repeatMode: Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES],
+		repeatAfter,
+	} as ITask)
 }
 
 useTaskDetailShortcuts({

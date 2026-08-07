@@ -35,6 +35,7 @@
 						:all-tasks="allTasks"
 						:show-add="!project?.isArchived && canWrite"
 						@taskUpdated="updateTasks"
+						@taskDeleted="removeTask"
 						@tasksAdded="updateTaskList"
 					/>
 					<Pagination
@@ -95,6 +96,7 @@
 								:the-task="t"
 								:all-tasks="allTasks"
 								@taskUpdated="updateTasks"
+								@taskDeleted="removeTask"
 							>
 								<span
 									v-if="canDragTasks && isPositionSorting"
@@ -259,6 +261,10 @@ function updateTasks(updatedTask: ITask) {
 			break
 		}
 	}
+}
+
+function removeTask(deletedTask: ITask) {
+	tasks.value = tasks.value.filter(t => t.id !== deletedTask.id)
 }
 
 function handleDragStart(e: { item: HTMLElement }) {

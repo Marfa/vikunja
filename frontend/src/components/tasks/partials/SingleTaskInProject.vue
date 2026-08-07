@@ -159,6 +159,29 @@
 				<span aria-hidden="true">#</span>
 			</RouterLink>
 
+			<div
+				v-if="canMarkAsDone && !disabled"
+				class="task-row-actions"
+				@click.stop
+			>
+				<BaseButton
+					v-tooltip="$t('project.list.editTask')"
+					class="task-row-action"
+					:aria-label="$t('project.list.editTask')"
+					:to="taskDetailRoute"
+				>
+					<Icon icon="pencil-alt" />
+				</BaseButton>
+				<BaseButton
+					v-tooltip="$t('task.detail.actions.delete')"
+					class="task-row-action task-row-action--danger"
+					:aria-label="$t('task.detail.actions.delete')"
+					@click="handleDeleteTask"
+				>
+					<Icon icon="trash-alt" />
+				</BaseButton>
+			</div>
+
 			<ColorBubble
 				v-if="!isTodoistLayout && showProjectSeparately && projectColor !== '' && currentProject?.id !== task.projectId"
 				:color="projectColor"
@@ -265,6 +288,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
 	'taskUpdated': [task: ITask],
+	'taskDeleted': [task: ITask],
 }>()
 
 const {isTodoist} = useUiSkin()
@@ -402,6 +426,15 @@ async function toggleFavorite() {
 	emit('taskUpdated', task.value)
 }
 
+async function handleDeleteTask() {
+	if (!window.confirm(t('task.detail.delete.text1'))) {
+		return
+	}
+	await taskStore.delete(task.value)
+	success({message: t('task.detail.deleteSuccess')})
+	emit('taskDeleted', task.value)
+}
+
 const taskRoot = ref<HTMLElement | null>(null)
 const taskLinkRef = ref<HTMLElement | null>(null)
 
@@ -412,7 +445,7 @@ function hasTextSelected() {
 
 function openTaskDetail(event: MouseEvent | KeyboardEvent) {
 	if (event.target instanceof HTMLElement) {
-		const isInteractiveElement = event.target.closest('a, button, label, input[type="checkbox"], .favorite, [role="button"]')
+		const isInteractiveElement = event.target.closest('a, button, label, input[type="checkbox"], .favorite, .task-row-actions, [role="button"]')
 		if (isInteractiveElement || hasTextSelected()) {
 			return
 		}
@@ -519,6 +552,40 @@ defineExpose({
 		}
 	}
 
+	.task-row-actions {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		margin-inline-start: auto;
+		flex-shrink: 0;
+		opacity: 1;
+		transition: opacity $transition;
+	}
+
+	.task-project-hash + .task-row-actions {
+		margin-inline-start: 0.35rem;
+	}
+
+	.task-row-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		inline-size: 1.75rem;
+		block-size: 1.75rem;
+		border-radius: $radius;
+		color: var(--text-muted);
+
+		&:hover {
+			background: rgba(0, 0, 0, 0.06);
+			color: var(--text);
+		}
+
+		&--danger:hover {
+			background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), 0.12);
+			color: var(--danger);
+		}
+	}
+
 	.avatar {
 		border-radius: 50%;
 		vertical-align: bottom;
@@ -563,11 +630,14 @@ defineExpose({
 	}
 
 	@media(hover: hover) and (pointer: fine) {
-		& .favorite {
+		& .favorite,
+		& .task-row-actions {
 			opacity: 0;
 		}
 
-		&:hover .favorite {
+		&:hover .favorite,
+		&:hover .task-row-actions,
+		&:focus-within .task-row-actions {
 			opacity: 1;
 		}
 	}

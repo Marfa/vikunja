@@ -20,6 +20,7 @@
 						:can-mark-as-done="canMarkDone(task)"
 						:all-tasks="allTasks"
 						@taskUpdated="emit('taskUpdated', $event)"
+						@taskDeleted="emit('taskDeleted', $event)"
 					/>
 				</li>
 			</ul>
@@ -66,6 +67,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
 	taskUpdated: [task: ITask],
+	taskDeleted: [task: ITask],
 	tasksAdded: [tasks: ITask[]],
 }>()
 

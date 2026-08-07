@@ -91,6 +91,7 @@
 				:groups="taskGroups"
 				:all-tasks="tasks"
 				@taskUpdated="updateTasks"
+				@taskDeleted="removeTask"
 				@tasksAdded="onTasksAdded"
 			/>
 			<div
@@ -117,6 +118,7 @@
 							:the-task="task"
 							:can-mark-as-done="(projectStore.projects[task.projectId]?.maxPermission ?? 0) > PERMISSIONS.READ"
 							@taskUpdated="updateTasks"
+							@taskDeleted="removeTask"
 						/>
 					</li>
 				</ul>
@@ -358,6 +360,10 @@ function updateTasks(updatedTask: ITask) {
 			break
 		}
 	}
+}
+
+function removeTask(deletedTask: ITask) {
+	tasks.value = tasks.value.filter(t => t.id !== deletedTask.id)
 }
 
 watch(

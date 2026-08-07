@@ -187,10 +187,14 @@ function updateData() {
 
 function handleModeChange(event: Event) {
 	const select = event.target as HTMLSelectElement
-	task.value.repeatMode = coerceMode(select.value)
-	if (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
-		repeatAfter.amount = 1
-		repeatAfter.type = 'days'
+	const mode = coerceMode(select.value)
+	task.value.repeatMode = mode
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
+		const nextAfter = {amount: 1, type: 'days' as IRepeatAfter['type']}
+		Object.assign(repeatAfter, nextAfter)
+		task.value.repeatAfter = {...nextAfter}
+		emit('update:modelValue', task.value)
+		return
 	}
 	updateData()
 }
@@ -203,9 +207,11 @@ function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
 
 /** Every Mon–Fri. */
 function setEveryWeekday() {
+	const nextAfter = {amount: 1, type: 'days' as IRepeatAfter['type']}
+	Object.assign(repeatAfter, nextAfter)
 	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
-	Object.assign(repeatAfter, {amount: 1, type: 'days'})
-	updateData()
+	task.value.repeatAfter = {...nextAfter}
+	emit('update:modelValue', task.value)
 }
 </script>
 
