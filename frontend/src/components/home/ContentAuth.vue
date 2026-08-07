@@ -53,6 +53,7 @@
 				<Modal
 					:enabled="typeof currentModal !== 'undefined'"
 					variant="scrolling"
+					mode="side-panel"
 					class="task-detail-view-modal"
 					:aria-label="$t('task.detail.title')"
 					@close="closeModal()"
@@ -102,6 +103,14 @@ const backgroundBrightness = computed(() =>
 const {sidebarWidth} = useSidebarResize()
 
 const {routeWithModal, currentModal, closeModal} = useRouteWithModal()
+
+watch(currentModal, (modal) => {
+	document.documentElement.classList.toggle('has-task-side-panel', Boolean(modal))
+}, {immediate: true})
+
+onBeforeUnmount(() => {
+	document.documentElement.classList.remove('has-task-side-panel')
+})
 
 const baseStore = useBaseStore()
 const background = computed(() => baseStore.background)
@@ -271,5 +280,20 @@ onBeforeUnmount(() => {
 .content-auth {
 	position: relative;
 	z-index: 1;
+}
+</style>
+
+<style lang="scss">
+// Reserve space so the docked task editor does not cover the task list.
+html.has-task-side-panel .app-content {
+	@media screen and (min-width: $tablet) {
+		padding-inline-end: min(28rem, 40vw);
+	}
+}
+
+html.has-task-side-panel .keyboard-shortcuts-button {
+	@media screen and (min-width: $tablet) {
+		inset-inline-end: calc(min(28rem, 40vw) + 1rem);
+	}
 }
 </style>

@@ -7,6 +7,7 @@
 			:class="[
 				{ 'has-overflow': overflow },
 				variant,
+				{ 'is-side-panel': mode === 'side-panel' },
 			]"
 			:aria-labelledby="headerLabelId"
 			v-bind="attrs"
@@ -73,11 +74,14 @@ const props = withDefaults(defineProps<{
 	overflow?: boolean,
 	wide?: boolean,
 	variant?: 'default' | 'hint-modal' | 'scrolling' | 'top',
+	/** Docked right panel: list stays interactive, no dimming scrim. */
+	mode?: 'modal' | 'side-panel',
 }>(), {
 	enabled: true,
 	overflow: false,
 	wide: false,
 	variant: 'default',
+	mode: 'modal',
 })
 
 defineEmits(['close', 'submit'])
@@ -108,7 +112,9 @@ function openDialog() {
 	}
 	previouslyFocused.value = document.activeElement
 	showDialog.value = true
-	document.body.style.overflow = 'hidden'
+	if (props.mode !== 'side-panel') {
+		document.body.style.overflow = 'hidden'
+	}
 	// If we're re-opening while the previous close transition is still in
 	// flight the <dialog> is still mounted and [open], so the dialogRef
 	// watcher below won't re-fire. Clear the data-closing flag here so the
@@ -166,7 +172,14 @@ watch(dialogRef, (dialog) => {
 	if (!dialog) return
 	if (!props.enabled) return
 	delete dialog.dataset.closing
-	dialog.showModal()
+	// showModal() puts the dialog in the top layer and inert's the rest of the
+	// page — fine for centered modals, wrong for a docked side panel that must
+	// leave the task list interactive.
+	if (props.mode === 'side-panel') {
+		dialog.show()
+	} else {
+		dialog.showModal()
+	}
 })
 
 // A <dialog> opened with showModal() lives in the browser's top layer, which
@@ -191,7 +204,11 @@ function handleAfterPrint() {
 	const dialog = dialogRef.value
 	if (dialog && dialog.open) {
 		dialog.close()
-		dialog.showModal()
+		if (props.mode === 'side-panel') {
+			dialog.show()
+		} else {
+			dialog.showModal()
+		}
 	}
 }
 
@@ -477,6 +494,55 @@ $modal-width: 1024px;
 
 	@media screen and (max-width: $tablet) {
 		display: block;
+	}
+}
+
+// Docked editor: list stays visible/interactive on the left.
+.is-side-panel.modal-dialog {
+	background: transparent;
+	inset: 0;
+	inline-size: 100%;
+	block-size: 100%;
+	pointer-events: none;
+
+	.modal-container {
+		display: flex;
+		justify-content: flex-end;
+		padding: 0;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.modal-content {
+		pointer-events: auto;
+		inline-size: min(28rem, 100vw);
+		max-inline-size: min(28rem, 100vw);
+		block-size: 100%;
+		max-block-size: 100dvh;
+		margin: 0;
+		overflow: auto;
+		border-radius: 0;
+		background: var(--site-background);
+		box-shadow: -0.25rem 0 1.25rem rgba(0, 0, 0, 0.12);
+		color: var(--text);
+	}
+
+	.close {
+		position: sticky;
+		inset-block-start: 0.5rem;
+		inset-inline-end: 0.5rem;
+		float: inline-end;
+		z-index: 2;
+		color: var(--text);
+		font-size: 1.5rem;
+		transform: none;
+	}
+
+	@media screen and (max-width: $tablet) {
+		.modal-content {
+			inline-size: 100%;
+			max-inline-size: 100%;
+		}
 	}
 }
 </style>

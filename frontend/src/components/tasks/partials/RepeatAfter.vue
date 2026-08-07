@@ -41,19 +41,19 @@
 				<div class="select is-fullwidth">
 					<select
 						id="repeatMode"
-						:value="task.repeatMode"
+						:value="String(repeatMode)"
 						@change="handleModeChange"
 					>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT">
+						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT)">
 							{{ $t('misc.default') }}
 						</option>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_MONTH">
+						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_MONTH)">
 							{{ $t('task.repeat.monthly') }}
 						</option>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE">
+						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE)">
 							{{ $t('task.repeat.fromCurrentDate') }}
 						</option>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS">
+						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS)">
 							{{ $t('task.repeat.weekdays') }}
 						</option>
 					</select>
@@ -112,7 +112,11 @@ import {error} from '@/message'
 import {TASK_REPEAT_MODES, type IRepeatMode} from '@/types/IRepeatMode'
 import type {IRepeatAfter} from '@/types/IRepeatAfter'
 import type {ITask} from '@/modelTypes/ITask'
-import TaskModel from '@/models/task'
+
+export type RepeatAfterUpdate = {
+	repeatMode: IRepeatMode
+	repeatAfter: IRepeatAfter
+}
 
 const props = withDefaults(defineProps<{
 	modelValue: ITask | undefined,
@@ -122,28 +126,34 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-	'update:modelValue': [value: ITask | undefined],
+	'update:modelValue': [value: RepeatAfterUpdate],
 }>()
 
 const {t} = useI18n({useScope: 'global'})
 
-const task = ref<ITask>(new TaskModel())
-const repeatAfter = reactive({
+const repeatMode = ref<IRepeatMode>(TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT)
+const repeatAfter = reactive<IRepeatAfter>({
 	amount: 0,
-	type: 'days' as IRepeatAfter['type'],
+	type: 'days',
 })
 
 const showIntervalFields = computed(() => {
-	const mode = Number(task.value.repeatMode)
+	const mode = Number(repeatMode.value)
 	return mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH && mode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
 })
 
 watch(
 	() => props.modelValue,
-	(value: ITask) => {
-		task.value = value
-		if (typeof value.repeatAfter !== 'undefined') {
-			Object.assign(repeatAfter, value.repeatAfter)
+	(value: ITask | undefined) => {
+		if (!value) {
+			return
+		}
+		repeatMode.value = Number(value.repeatMode) as IRepeatMode
+		if (typeof value.repeatAfter === 'object' && value.repeatAfter !== null) {
+			Object.assign(repeatAfter, {
+				amount: Number(value.repeatAfter.amount) || 0,
+				type: value.repeatAfter.type || 'days',
+			})
 		}
 	},
 	{
@@ -156,13 +166,19 @@ function coerceMode(mode: unknown): IRepeatMode {
 	return Number(mode) as IRepeatMode
 }
 
-function updateData() {
-	if (!task.value) {
-		return
-	}
+/** Emit a plain DTO — never the reactive task Proxy. */
+function emitUpdate(mode: IRepeatMode, after: IRepeatAfter) {
+	emit('update:modelValue', {
+		repeatMode: coerceMode(mode),
+		repeatAfter: {
+			amount: Number(after.amount) || 0,
+			type: after.type || 'days',
+		},
+	})
+}
 
-	task.value.repeatMode = coerceMode(task.value.repeatMode)
-	const mode = task.value.repeatMode
+function updateData() {
+	const mode = coerceMode(repeatMode.value)
 
 	if (
 		(mode === TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT && repeatAfter.amount === 0) ||
@@ -181,37 +197,35 @@ function updateData() {
 		repeatAfter.type = 'days'
 	}
 
-	Object.assign(task.value.repeatAfter, repeatAfter)
-	emit('update:modelValue', task.value)
+	emitUpdate(mode, repeatAfter)
 }
 
 function handleModeChange(event: Event) {
 	const select = event.target as HTMLSelectElement
 	const mode = coerceMode(select.value)
-	task.value.repeatMode = mode
+	repeatMode.value = mode
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
-		const nextAfter = {amount: 1, type: 'days' as IRepeatAfter['type']}
-		Object.assign(repeatAfter, nextAfter)
-		task.value.repeatAfter = {...nextAfter}
-		emit('update:modelValue', task.value)
+		repeatAfter.amount = 1
+		repeatAfter.type = 'days'
+		emitUpdate(mode, repeatAfter)
 		return
 	}
 	updateData()
 }
 
 function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
-	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
-	Object.assign(repeatAfter, {amount, type})
-	updateData()
+	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+	repeatAfter.amount = amount
+	repeatAfter.type = type
+	emitUpdate(repeatMode.value, repeatAfter)
 }
 
 /** Every Mon–Fri. */
 function setEveryWeekday() {
-	const nextAfter = {amount: 1, type: 'days' as IRepeatAfter['type']}
-	Object.assign(repeatAfter, nextAfter)
-	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
-	task.value.repeatAfter = {...nextAfter}
-	emit('update:modelValue', task.value)
+	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
+	repeatAfter.amount = 1
+	repeatAfter.type = 'days'
+	emitUpdate(repeatMode.value, repeatAfter)
 }
 </script>
 

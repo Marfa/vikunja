@@ -236,6 +236,7 @@
 <script setup lang="ts">
 import {ref, watch, shallowReactive, onMounted, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRouter} from 'vue-router'
 
 import TaskModel, {getHexColor} from '@/models/task'
 import type {ITask} from '@/modelTypes/ITask'
@@ -303,6 +304,7 @@ function getTaskById(taskId: number): ITask | undefined {
 }
 
 const {t} = useI18n({useScope: 'global'})
+const router = useRouter()
 
 const taskService = shallowReactive(new TaskService())
 const task = ref<ITask>(new TaskModel())
@@ -340,8 +342,7 @@ const currentProject = computed(() => {
 const taskDetailRoute = computed(() => ({
 	name: 'task.detail',
 	params: {id: task.value.id},
-	// TODO: re-enable opening task detail in modal
-	// state: { backdropView: router.currentRoute.value.fullPath },
+	state: {backdropView: router.currentRoute.value.fullPath},
 }))
 
 function updateDueDate() {

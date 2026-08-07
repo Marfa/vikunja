@@ -77,22 +77,26 @@ export default class TaskService extends AbstractService<ITask> {
 
 		// Make the repeating amount to seconds
 		let repeatAfterSeconds = 0
-		if (model.repeatAfter !== null && (model.repeatAfter.amount !== null || model.repeatAfter.amount !== 0)) {
-			switch (model.repeatAfter.type) {
+		const ra = model.repeatAfter
+		if (typeof ra === 'number') {
+			repeatAfterSeconds = ra
+		} else if (ra && typeof ra === 'object') {
+			const amount = Number(ra.amount) || 0
+			switch (ra.type) {
 				case 'hours':
-					repeatAfterSeconds = model.repeatAfter.amount * SECONDS_A_HOUR
+					repeatAfterSeconds = amount * SECONDS_A_HOUR
 					break
 				case 'days':
-					repeatAfterSeconds = model.repeatAfter.amount * SECONDS_A_DAY
+					repeatAfterSeconds = amount * SECONDS_A_DAY
 					break
 				case 'weeks':
-					repeatAfterSeconds = model.repeatAfter.amount * SECONDS_A_WEEK
+					repeatAfterSeconds = amount * SECONDS_A_WEEK
 					break
 			}
 		}
 		model.repeatAfter = repeatAfterSeconds
 
-		model.repeatMode = Number(model.repeatMode)
+		model.repeatMode = Number(model.repeatMode) || 0
 
 		model.hexColor = colorFromHex(model.hexColor)
 

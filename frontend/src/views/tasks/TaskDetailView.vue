@@ -1128,24 +1128,22 @@ async function saveTask(
 	success({message: t('task.detail.updateSuccess')}, actions)
 }
 
-/** Persist repeat presets without relying on v-model + klona/lite over a Proxy. */
-async function handleRepeatAfterUpdate(updated: ITask | undefined) {
+/** Persist repeat fields from RepeatAfter's plain DTO (never a reactive Proxy). */
+async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter: {amount: number, type: string}} | undefined) {
 	if (!updated || !canWrite.value) {
 		return
 	}
 
-	const repeatAfter = typeof updated.repeatAfter === 'object' && updated.repeatAfter !== null
-		? {...updated.repeatAfter}
-		: updated.repeatAfter
+	const mode = Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES]
+	const after = {
+		amount: Number(updated.repeatAfter?.amount) || 0,
+		type: (updated.repeatAfter?.type || 'days') as 'hours' | 'days' | 'weeks',
+	}
 
-	task.value.repeatMode = Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES]
-	task.value.repeatAfter = repeatAfter as ITask['repeatAfter']
+	task.value.repeatMode = mode
+	task.value.repeatAfter = after
 
-	await saveTask({
-		...klona(toRaw(task.value)),
-		repeatMode: Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES],
-		repeatAfter,
-	} as ITask)
+	await saveTask()
 }
 
 useTaskDetailShortcuts({
