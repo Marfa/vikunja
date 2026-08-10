@@ -12,6 +12,26 @@ export interface TodoistDayGroup {
 	tasks: ITask[]
 }
 
+function createdTime(task: ITask): number {
+	const created = task.created
+	if (!created) {
+		return 0
+	}
+	const t = +created
+	return Number.isFinite(t) ? t : 0
+}
+
+/** Within a day: priority desc, then created asc. */
+export function sortTasksWithinDay(tasks: ITask[]): ITask[] {
+	return [...tasks].sort((a, b) => {
+		const byPriority = (b.priority ?? 0) - (a.priority ?? 0)
+		if (byPriority !== 0) {
+			return byPriority
+		}
+		return createdTime(a) - createdTime(b)
+	})
+}
+
 function dayLabel(date: dayjs.Dayjs): string {
 	const t = i18n.global.t
 	const today = dayjs().startOf('day')
@@ -74,7 +94,7 @@ export function groupTasksByDueDay(
 			domId: 'todoist-day-overdue',
 			label: t('task.show.overdueGroup'),
 			dueDate: null,
-			tasks: overdue,
+			tasks: sortTasksWithinDay(overdue),
 		})
 	}
 
@@ -91,7 +111,7 @@ export function groupTasksByDueDay(
 				domId: `todoist-day-${key}`,
 				label: dayLabel(cursor),
 				dueDate: cursor.toDate(),
-				tasks: byDay.get(key) ?? [],
+				tasks: sortTasksWithinDay(byDay.get(key) ?? []),
 			})
 			cursor = cursor.add(1, 'day')
 		}
@@ -104,7 +124,7 @@ export function groupTasksByDueDay(
 				domId: `todoist-day-${key}`,
 				label: dayLabel(d),
 				dueDate: d.toDate(),
-				tasks: byDay.get(key) ?? [],
+				tasks: sortTasksWithinDay(byDay.get(key) ?? []),
 			})
 		}
 	}
@@ -115,7 +135,7 @@ export function groupTasksByDueDay(
 			domId: 'todoist-day-nodate',
 			label: t('task.show.noDateGroup'),
 			dueDate: null,
-			tasks: noDate,
+			tasks: sortTasksWithinDay(noDate),
 		})
 	}
 
