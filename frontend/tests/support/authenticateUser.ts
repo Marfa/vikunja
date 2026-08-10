@@ -1,6 +1,7 @@
 import type {Page, APIRequestContext} from '@playwright/test'
 import {UserFactory} from '../factories/user'
 import {TEST_PASSWORD} from './constants'
+import {updateUserSettings} from './updateUserSettings'
 
 /**
  * Sets up the API URL in the page's localStorage and window so the frontend
@@ -38,6 +39,13 @@ export async function login(page: Page | null, apiContext: APIRequestContext, us
 
 	const body = await response.json()
 	const token = body.token
+
+	// E2E specs assert the classic layout; product default skin is Todoist.
+	await updateUserSettings(apiContext, token, {
+		frontendSettings: {
+			uiSkin: 'default',
+		},
+	})
 
 	// Set token and API_URL before navigating (only if page is provided)
 	if (page) {

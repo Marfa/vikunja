@@ -161,9 +161,6 @@ import TaskCollectionService from '@/services/taskCollection'
 import {PERMISSIONS} from '@/constants/permissions'
 import {useUiSkin} from '@/composables/useUiSkin'
 
-const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
-const UpcomingWeekStrip = defineAsyncComponent(() => import('@/components/tasks/UpcomingWeekStrip.vue'))
-
 const props = withDefaults(defineProps<{
 	dateFrom?: Date | string,
 	dateTo?: Date | string,
@@ -184,6 +181,9 @@ const emit = defineEmits<{
 	'tasksLoaded': true,
 	'clearLabelFilter': void,
 }>()
+
+const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
+const UpcomingWeekStrip = defineAsyncComponent(() => import('@/components/tasks/UpcomingWeekStrip.vue'))
 
 const authStore = useAuthStore()
 const taskStore = useTaskStore()

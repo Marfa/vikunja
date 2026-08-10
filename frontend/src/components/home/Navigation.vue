@@ -16,7 +16,7 @@
 				v-if="isTodoist"
 				:user-display-name="authStore.userDisplayName"
 				:inbox-project="inboxProject"
-				@add-task="openQuickActions"
+				@addTask="openQuickActions"
 			/>
 			<NavigationDefaultTop
 				v-else

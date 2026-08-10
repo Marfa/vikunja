@@ -150,13 +150,13 @@ import type {IProjectView} from '@/modelTypes/IProjectView'
 import TaskPositionService from '@/services/taskPosition'
 import TaskPositionModel from '@/models/taskPosition'
 
-const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
-
 const props = defineProps<{
         isLoadingProject: boolean,
         projectId: IProject['id'],
         viewId: IProjectView['id'],
 }>()
+
+const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
 
 const projectId = toRef(props, 'projectId')
 
