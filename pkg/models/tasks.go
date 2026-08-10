@@ -1725,8 +1725,19 @@ func (t *Task) moveTaskToDefaultBuckets(s *xorm.Session, a web.Auth, views []*Pr
 	return nil
 }
 
+// addOneMonthToDate advances d by one calendar month, keeping the same day-of-month
+// when possible. If that day does not exist in the target month (e.g. Jan 30 → Feb),
+// it clamps to the last day of the month instead of overflowing into the following one.
 func addOneMonthToDate(d time.Time) time.Time {
-	return time.Date(d.Year(), d.Month()+1, d.Day(), d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), config.GetTimeZone())
+	loc := config.GetTimeZone()
+	year, month, day := d.Date()
+	// Day 1 avoids Go's date normalization skipping short months (Feb 30 → Mar 2).
+	firstOfNext := time.Date(year, month+1, 1, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+	lastDay := time.Date(firstOfNext.Year(), firstOfNext.Month()+1, 0, 0, 0, 0, 0, loc).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(firstOfNext.Year(), firstOfNext.Month(), day, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
 }
 
 // addRepeatIntervalToTime advances t by whole multiples of duration until
@@ -1816,9 +1827,10 @@ func snapToWeekday(t time.Time) time.Time {
 		return t.AddDate(0, 0, 2)
 	case time.Sunday:
 		return t.AddDate(0, 0, 1)
-	default:
+	case time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday:
 		return t
 	}
+	return t
 }
 
 // snapTaskDatesToWeekdays keeps weekday-repeat tasks off Sat/Sun in list views.

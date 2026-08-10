@@ -1294,7 +1294,6 @@ function setRelatedTasksActive() {
 	.column.is-one-third {
 		inline-size: 100% !important;
 		max-inline-size: 100%;
-		width: 100% !important;
 	}
 
 	// Attribute cards (priority/due/repeat/…) must not share a half-width row.
@@ -1303,7 +1302,6 @@ function setRelatedTasksActive() {
 
 		> .column {
 			inline-size: 100% !important;
-			width: 100% !important;
 			max-inline-size: 100%;
 		}
 	}

@@ -25,9 +25,9 @@
 			<XButton
 				variant="secondary"
 				class="is-small preset"
-				@click="() => setRepeatAfter(30, 'days')"
+				@click="setEveryMonth"
 			>
-				{{ $t('task.repeat.every30d') }}
+				{{ $t('task.repeat.everyMonth') }}
 			</XButton>
 		</div>
 		<div class="is-flex is-align-items-center mbe-2 mode-row">
@@ -210,6 +210,12 @@ function handleModeChange(event: Event) {
 		emitUpdate(mode, repeatAfter)
 		return
 	}
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH) {
+		repeatAfter.amount = 0
+		repeatAfter.type = 'days'
+		emitUpdate(mode, repeatAfter)
+		return
+	}
 	updateData()
 }
 
@@ -217,6 +223,14 @@ function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
 	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
 	repeatAfter.amount = amount
 	repeatAfter.type = type
+	emitUpdate(repeatMode.value, repeatAfter)
+}
+
+/** Same calendar day each month (short months clamp to last day). */
+function setEveryMonth() {
+	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_MONTH
+	repeatAfter.amount = 0
+	repeatAfter.type = 'days'
 	emitUpdate(repeatMode.value, repeatAfter)
 }
 

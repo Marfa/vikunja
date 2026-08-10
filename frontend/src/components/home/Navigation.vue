@@ -418,7 +418,7 @@ function openQuickActions() {
 	border-radius: 8px;
 	color: var(--primary);
 	font-weight: 600;
-	width: calc(100% - 1.5rem);
+	inline-size: calc(100% - 1.5rem);
 
 	&:hover {
 		background: rgba(0, 0, 0, 0.04);
@@ -429,11 +429,11 @@ function openQuickActions() {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 1.5rem;
-	height: 1.5rem;
+	inline-size: 1.5rem;
+	block-size: 1.5rem;
 	border-radius: 50%;
 	background: var(--primary);
-	color: #fff;
+	color: #ffffff;
 	font-size: 0.75rem;
 }
 

@@ -103,7 +103,7 @@ const days = computed(() => {
 	align-items: center;
 	gap: 0.35rem;
 	flex: 1;
-	max-width: 3.5rem;
+	max-inline-size: 3.5rem;
 	padding: 0.35rem 0.25rem;
 	border: none;
 	background: transparent;
@@ -122,8 +122,8 @@ const days = computed(() => {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 2rem;
-	height: 2rem;
+	inline-size: 2rem;
+	block-size: 2rem;
 	border-radius: 50%;
 	font-weight: 600;
 	font-size: 0.95rem;
@@ -132,7 +132,7 @@ const days = computed(() => {
 .upcoming-week-strip__day.is-today .upcoming-week-strip__date,
 .upcoming-week-strip__day.is-selected .upcoming-week-strip__date {
 	background: var(--text-strong);
-	color: #fff;
+	color: #ffffff;
 }
 
 .upcoming-week-strip__day:hover .upcoming-week-strip__date {

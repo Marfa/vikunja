@@ -82,10 +82,6 @@ import {useTaskStore} from '@/stores/tasks'
 
 import {useAutoHeightTextarea} from '@/composables/useAutoHeightTextarea'
 
-const emit = defineEmits<{
-	tasksAdded: [tasks: ITask[]],
-}>()
-
 const props = withDefaults(defineProps<{
 	defaultDueDate?: Date | string | null,
 	compact?: boolean,
@@ -93,6 +89,10 @@ const props = withDefaults(defineProps<{
 	defaultDueDate: null,
 	compact: false,
 })
+
+const emit = defineEmits<{
+	tasksAdded: [tasks: ITask[]],
+}>()
 
 const textareaId = computed(() => `task-add-textarea-${Math.random().toString(36).substr(2, 9)}`)
 

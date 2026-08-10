@@ -189,7 +189,7 @@ test.describe('Task', () => {
 	})
 
 	test.describe('Task Detail View', () => {
-		test('provides back navigation to the project in the list view', async ({authenticatedPage: page}) => {
+		test('provides close navigation to the project in the list view', async ({authenticatedPage: page}) => {
 			const tasks = await TaskFactory.create(1)
 			const loadTasksPromise = page.waitForResponse(response =>
 				response.url().includes('/projects/1/views/') && response.url().includes('/tasks'),
@@ -197,12 +197,13 @@ test.describe('Task', () => {
 			await page.goto('/projects/1/1')
 			await loadTasksPromise
 			await page.locator('.list-view .task').first().locator('a.task-link').click()
-			await expect(page.locator('.task-view .back-button')).toBeVisible()
-			await page.locator('.task-view .back-button').click()
+			// List opens the task in a side panel — close, not back.
+			await expect(page.locator('.task-view .task-properties .close')).toBeVisible()
+			await page.locator('.task-view .task-properties .close').click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
 		})
 
-		test('provides back navigation to the project in the table view', async ({authenticatedPage: page}) => {
+		test('provides close navigation to the project in the table view', async ({authenticatedPage: page}) => {
 			const tasks = await TaskFactory.create(1)
 			const loadTasksPromise = page.waitForResponse(response =>
 				response.url().includes('/projects/1/views/') && response.url().includes('/tasks'),
@@ -210,8 +211,8 @@ test.describe('Task', () => {
 			await page.goto('/projects/1/3')
 			await loadTasksPromise
 			await page.locator('tbody tr').first().locator('a').first().click()
-			await expect(page.locator('.task-view .back-button')).toBeVisible()
-			await page.locator('.task-view .back-button').click()
+			await expect(page.locator('.task-view .task-properties .close')).toBeVisible()
+			await page.locator('.task-view .task-properties .close').click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
 		})
 

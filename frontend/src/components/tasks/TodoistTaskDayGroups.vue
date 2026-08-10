@@ -56,7 +56,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import {useProjectStore} from '@/stores/projects'
 import {PERMISSIONS} from '@/constants/permissions'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
 	groups: TodoistDayGroup[],
 	allTasks?: ITask[],
 	showAdd?: boolean,

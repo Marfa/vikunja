@@ -24,6 +24,7 @@ import (
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/files"
+	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/user"
 
 	"github.com/stretchr/testify/assert"
@@ -1195,6 +1196,85 @@ func TestUpdateDone(t *testing.T) {
 				assert.NotEqual(t, oldEndDate.Month(), newTask.EndDate.Month())
 				assert.Equal(t, oldDiff, newTask.EndDate.Sub(newTask.StartDate))
 				assert.False(t, newTask.Done)
+			})
+			t.Run("clamps to last day of short month", func(t *testing.T) {
+				loc := config.GetTimeZone()
+				jan30 := time.Date(2025, time.January, 30, 15, 30, 0, 0, loc)
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeMonth,
+					DueDate:    jan30,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.False(t, newTask.Done)
+				assert.Equal(t, time.February, newTask.DueDate.Month())
+				assert.Equal(t, 2025, newTask.DueDate.Year())
+				assert.Equal(t, 28, newTask.DueDate.Day())
+				assert.Equal(t, jan30.Hour(), newTask.DueDate.Hour())
+				assert.Equal(t, jan30.Minute(), newTask.DueDate.Minute())
+			})
+			t.Run("clamps Jan 31 to Feb 28", func(t *testing.T) {
+				loc := config.GetTimeZone()
+				jan31 := time.Date(2025, time.January, 31, 9, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeMonth,
+					DueDate:    jan31,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.February, newTask.DueDate.Month())
+				assert.Equal(t, 28, newTask.DueDate.Day())
+			})
+			t.Run("clamps Jan 31 to Feb 29 in leap year", func(t *testing.T) {
+				loc := config.GetTimeZone()
+				jan31 := time.Date(2024, time.January, 31, 9, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeMonth,
+					DueDate:    jan31,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.February, newTask.DueDate.Month())
+				assert.Equal(t, 29, newTask.DueDate.Day())
+			})
+			t.Run("same day when month has enough days", func(t *testing.T) {
+				loc := config.GetTimeZone()
+				mar15 := time.Date(2025, time.March, 15, 12, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeMonth,
+					DueDate:    mar15,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.April, newTask.DueDate.Month())
+				assert.Equal(t, 15, newTask.DueDate.Day())
+			})
+			t.Run("Mar 31 clamps to Apr 30", func(t *testing.T) {
+				loc := config.GetTimeZone()
+				mar31 := time.Date(2025, time.March, 31, 8, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:       false,
+					RepeatMode: TaskRepeatModeMonth,
+					DueDate:    mar31,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.April, newTask.DueDate.Month())
+				assert.Equal(t, 30, newTask.DueDate.Day())
 			})
 		})
 		t.Run("reset checklist on recurrence", func(t *testing.T) {

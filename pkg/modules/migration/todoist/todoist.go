@@ -258,13 +258,17 @@ func parseDate(dateString string, loc *time.Location) (date time.Time, err error
 
 	date, err = time.Parse("2006-01-02T15:04:05Z", dateString)
 	if err != nil {
-		date, err = time.Parse("2006-01-02T15:04:05", dateString)
+		// No Z → Todoist local wall time in the user timezone.
+		date, err = time.ParseInLocation("2006-01-02T15:04:05", dateString, loc)
 	}
 	if err != nil {
 		date, err = time.ParseInLocation("2006-01-02", dateString, loc)
 	}
+	if err != nil {
+		return date, err
+	}
 
-	return date, err
+	return date.In(loc), nil
 }
 
 // Matching the existing migration importers, months are treated as 30 days and years as 365.
