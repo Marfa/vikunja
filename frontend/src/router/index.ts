@@ -247,6 +247,7 @@ const router = createRouter({
 			path: '/projects/new',
 			name: 'project.create',
 			component: () => import('@/views/project/NewProject.vue'),
+			props: () => ({}),
 			meta: {
 				showAsModal: true,
 			},
@@ -373,7 +374,9 @@ const router = createRouter({
 			},
 		},
 		{
-			path: '/projects/:projectId/:viewId',
+			// Restrict viewId to digits so paths like /projects/:id/new never
+			// fall through here if route order or ranking changes.
+			path: '/projects/:projectId/:viewId(\\d+)',
 			name: 'project.view',
 			component: () => import('@/views/project/ProjectView.vue'),
 			props: route => ({ 

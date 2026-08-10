@@ -28,6 +28,20 @@ test.describe('Projects', () => {
 		await expect(page.locator('.project-title')).toContainText('New Project')
 	})
 
+	test('Should open create project from the project settings menu', async ({authenticatedPage: page}) => {
+		const projectId = projects[0].id
+		const listViewId = projects[0].views[0].id
+		await page.goto(`/projects/${projectId}/${listViewId}`)
+		await page.waitForLoadState('networkidle')
+
+		await page.locator('.project-title-dropdown .project-title-button').click()
+		await page.getByRole('link', {name: /create project/i}).click()
+
+		await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/new`))
+		await expect(page.locator('dialog[open] .card-header-title')).toContainText('New project')
+		await expect(page.locator('dialog[open] input[name=projectTitle]')).toBeVisible()
+	})
+
 	test('Should redirect to a specific project view after visited', async ({authenticatedPage: page}) => {
 		const projectId = projects[0].id
 		const kanbanViewId = projects[0].views[3].id

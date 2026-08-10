@@ -56,7 +56,7 @@
 				</span>
 			</div>
 			
-			<h3>
+			<h3 class="kanban-card__title">
 				<RouterLink
 					:to="{ name: 'task.detail', params: {id: task.id} }"
 					class="kanban-card__title-link"
@@ -65,8 +65,20 @@
 					@click.ctrl.stop
 					@click.meta.stop
 				>
-					{{ task.title }}
+					{{ titleDisplay.label }}
 				</RouterLink>
+				<a
+					v-if="titleDisplay.href"
+					v-tooltip="$t('task.openExternalLink')"
+					:href="titleDisplay.href"
+					class="kanban-card__external-link"
+					target="_blank"
+					rel="noopener noreferrer"
+					:aria-label="$t('task.openExternalLink')"
+					@click.stop
+				>
+					<Icon icon="arrow-up-from-bracket" />
+				</a>
 			</h3>
 			
 			<span
@@ -153,6 +165,7 @@ import {playPopSound} from '@/helpers/playPop'
 import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import {useProjectStore} from '@/stores/projects'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
+import {parseTaskTitleMarkdownLink} from '@/helpers/parseTaskTitleMarkdownLink'
 
 const props = withDefaults(defineProps<{
 	task: ITask,
@@ -171,6 +184,7 @@ const router = useRouter()
 const loadingInternal = ref(false)
 
 const color = computed(() => getHexColor(props.task.hexColor))
+const titleDisplay = computed(() => parseTaskTitleMarkdownLink(props.task.title))
 
 const projectStore = useProjectStore()
 
@@ -272,7 +286,7 @@ $task-background: var(--white);
 		border-width: 2px;
 	}
 
-	h3 {
+	h3.kanban-card__title {
 		font-family: $family-sans-serif;
 		font-size: .85rem;
 		word-break: break-word;
@@ -281,6 +295,18 @@ $task-background: var(--white);
 	.kanban-card__title-link {
 		color: inherit;
 		text-decoration: none;
+	}
+
+	.kanban-card__external-link {
+		display: inline-flex;
+		align-items: center;
+		margin-inline-start: 0.35rem;
+		color: var(--text-muted);
+		vertical-align: -0.1em;
+
+		&:hover {
+			color: var(--primary);
+		}
 	}
 
 	.due-date {

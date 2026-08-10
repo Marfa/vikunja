@@ -1,8 +1,11 @@
 <template>
 	<BaseButton
 		class="dropdown-item"
+		:to="to"
+		:href="href"
 		:disabled="disabled"
 		:class="{'is-disabled': disabled}"
+		@click="(event: MouseEvent) => emit('click', event)"
 	>
 		<span
 			v-if="icon"
@@ -18,17 +21,28 @@
 </template>
 
 <script lang="ts" setup>
-import BaseButton, {type BaseButtonProps} from '@/components/base//BaseButton.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
 import type {IconProp} from '@fortawesome/fontawesome-svg-core'
+import type {RouteLocationRaw} from 'vue-router'
 
-export interface DropDownItemProps extends /* @vue-ignore */ BaseButtonProps {
+withDefaults(defineProps<{
 	icon?: IconProp,
 	iconClass?: object | string,
 	disabled?: boolean,
-}
+	to?: RouteLocationRaw,
+	href?: string,
+}>(), {
+	icon: undefined,
+	iconClass: undefined,
+	disabled: false,
+	to: undefined,
+	href: undefined,
+})
 
-defineProps<DropDownItemProps>()
+const emit = defineEmits<{
+	click: [payload: MouseEvent]
+}>()
 </script>
 
 <style scoped lang="scss">

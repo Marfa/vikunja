@@ -35,7 +35,7 @@
 				:class="{ 'done': task.done, 'show-project': showProject && project && !isTodoistLayout}"
 				class="tasktext"
 			>
-				<span class="is-inline-flex is-align-items-center">
+				<span class="task-title-line">
 					<RouterLink
 						v-if="showProject && typeof project !== 'undefined' && !isTodoistLayout"
 						v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
@@ -60,13 +60,27 @@
 					/>
 
 					<TaskGlanceTooltip :task="task">
-						<RouterLink
-							ref="taskLinkRef"
-							:to="taskDetailRoute"
-							class="task-link"
-						>
-							{{ task.title }}
-						</RouterLink>
+						<span class="task-title-wrap">
+							<RouterLink
+								ref="taskLinkRef"
+								:to="taskDetailRoute"
+								class="task-link"
+							>
+								{{ titleDisplay.label }}
+							</RouterLink>
+							<a
+								v-if="titleDisplay.href"
+								v-tooltip="$t('task.openExternalLink')"
+								:href="titleDisplay.href"
+								class="task-external-link"
+								target="_blank"
+								rel="noopener noreferrer"
+								:aria-label="$t('task.openExternalLink')"
+								@click.stop
+							>
+								<Icon icon="arrow-up-from-bracket" />
+							</a>
+						</span>
 					</TaskGlanceTooltip>
 				</span>
 
@@ -111,7 +125,7 @@
 					</template>
 				</Popup>
 
-				<span>
+				<span class="task-meta-icons">
 					<span
 						v-if="task.attachments.length > 0"
 						class="project-task-icon"
@@ -270,6 +284,7 @@ import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
 import {useGlobalNow} from '@/composables/useGlobalNow'
 import {useUiSkin} from '@/composables/useUiSkin'
 import {getProjectTitle} from '@/helpers/getProjectTitle'
+import {parseTaskTitleMarkdownLink} from '@/helpers/parseTaskTitleMarkdownLink'
 
 const props = withDefaults(defineProps<{
 	theTask: ITask,
@@ -313,6 +328,8 @@ const taskService = shallowReactive(new TaskService())
 const task = ref<ITask>(new TaskModel())
 
 const isRepeating = computed(() => task.value.repeatAfter.amount > 0 || (task.value.repeatAfter.amount === 0 && (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH || task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS)))
+
+const titleDisplay = computed(() => parseTaskTitleMarkdownLink(task.value.title))
 
 watch(
 	() => props.theTask,
@@ -460,10 +477,10 @@ defineExpose({
 <style lang="scss" scoped>
 .task {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	padding: .4rem;
 	transition: background-color $transition;
-	align-items: center;
+	align-items: flex-start;
 	cursor: pointer;
 	border-radius: $radius;
 	border: 2px solid transparent;
@@ -490,19 +507,54 @@ defineExpose({
 		}
 	}
 
+	> .is-inline-flex {
+		flex-shrink: 0;
+		padding-block-start: 0.15rem;
+	}
+
+	.task-title-line {
+		display: block;
+		min-inline-size: 0;
+	}
+
 	.tasktext,
 	&.tasktext {
-		text-overflow: ellipsis;
+		min-inline-size: 0;
+		flex: 1 1 auto;
 		word-wrap: break-word;
 		word-break: break-word;
-		display: -webkit-box;
 		hyphens: auto;
-		-webkit-line-clamp: 4;
-		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
 
-		flex: 1 0 50%;
+	.task-title-wrap {
+		display: inline;
+	}
 
+	.task-link {
+		overflow-wrap: anywhere;
+	}
+
+	.task-external-link {
+		display: inline-flex;
+		align-items: center;
+		margin-inline-start: 0.35rem;
+		color: var(--text-muted);
+		vertical-align: -0.1em;
+
+		&:hover {
+			color: var(--primary);
+		}
+	}
+
+	.task-meta-icons {
+		display: inline-flex;
+		align-items: center;
+		flex-wrap: nowrap;
+		gap: 0;
+		margin-inline-start: 0.15rem;
+		vertical-align: middle;
+		white-space: nowrap;
 	}
 
 	.dueDate {
@@ -534,6 +586,7 @@ defineExpose({
 		inline-size: auto;
 		margin-inline-start: auto;
 		padding-inline-start: 0.75rem;
+		padding-block-start: 0.15rem;
 		font-size: .85rem;
 		white-space: nowrap;
 		flex-shrink: 0;
@@ -553,7 +606,8 @@ defineExpose({
 		display: inline-flex;
 		align-items: center;
 		gap: 0.15rem;
-		margin-inline-start: auto;
+		margin-inline-start: 0.35rem;
+		padding-block-start: 0.05rem;
 		flex-shrink: 0;
 		opacity: 1;
 		transition: opacity $transition;

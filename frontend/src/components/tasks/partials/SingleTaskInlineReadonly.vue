@@ -34,7 +34,7 @@
 				</template>
 				&rsaquo;
 			</span>
-			{{ task.title }}
+			{{ titleDisplay.label }}
 		</span>
 
 		<Labels
@@ -116,6 +116,7 @@ import {formatDisplayDate, formatISO, formatDateLong} from '@/helpers/time/forma
 
 import {useProjectStore} from '@/stores/projects'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
+import {parseTaskTitleMarkdownLink} from '@/helpers/parseTaskTitleMarkdownLink'
 
 const props = withDefaults(defineProps<{
 	task: ITask,
@@ -127,6 +128,7 @@ const props = withDefaults(defineProps<{
 const projectStore = useProjectStore()
 
 const project = computed(() => projectStore.projects[props.task.projectId])
+const titleDisplay = computed(() => parseTaskTitleMarkdownLink(props.task.title))
 </script>
 
 <style lang="scss" scoped>

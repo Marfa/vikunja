@@ -23,7 +23,7 @@
 					<div class="task-glance-header">
 						<div class="task-glance-title-section">
 							<span class="task-identifier">{{ taskIdentifier }}</span>
-							<span class="task-title">{{ task.title }}</span>
+							<span class="task-title">{{ titleDisplay.label }}</span>
 						</div>
 						<div class="task-glance-indicators">
 							<span
@@ -92,6 +92,7 @@ import {getTaskIdentifier} from '@/models/task'
 import {formatDisplayDate} from '@/helpers/time/formatDate'
 import {getDisplayName} from '@/models/user'
 import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
+import {parseTaskTitleMarkdownLink} from '@/helpers/parseTaskTitleMarkdownLink'
 
 import Labels from '@/components/tasks/partials/Labels.vue'
 import ChecklistSummary from '@/components/tasks/partials/ChecklistSummary.vue'
@@ -114,6 +115,7 @@ const showTooltip = ref(false)
 let hoverTimeout: ReturnType<typeof setTimeout> | null = null
 
 const taskIdentifier = computed(() => getTaskIdentifier(props.task))
+const titleDisplay = computed(() => parseTaskTitleMarkdownLink(props.task.title))
 
 const descriptionPreview = computed(() => {
 	if (isEditorContentEmpty(props.task.description)) {

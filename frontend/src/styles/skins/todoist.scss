@@ -82,9 +82,14 @@ html.todoist {
 		padding-block: 0.65rem;
 		border-radius: 0;
 		border-bottom: 1px solid var(--border);
+		align-items: flex-start;
 
 		&:hover {
 			background: transparent;
+		}
+
+		.task-meta-icons {
+			color: var(--text-muted);
 		}
 	}
 

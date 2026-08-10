@@ -11,16 +11,16 @@
 			]"
 			:aria-labelledby="headerLabelId"
 			v-bind="attrs"
-			@cancel.prevent="$emit('close')"
+			@cancel.prevent="requestClose"
 		>
 			<div
 				class="modal-container"
-				@mousedown.self.prevent.stop="$emit('close')"
+				@mousedown.self.prevent.stop="requestClose"
 			>
 				<BaseButton
 					:aria-label="$t('misc.closeDialog')"
 					class="close d-print-none"
-					@click="$emit('close')"
+					@click="requestClose"
 				>
 					<Icon icon="times" />
 				</BaseButton>
@@ -45,7 +45,7 @@
 							<XButton
 								variant="tertiary"
 								class="has-text-danger"
-								@click="$emit('close')"
+								@click="requestClose"
 							>
 								{{ $t('misc.cancel') }}
 							</XButton>
@@ -84,8 +84,6 @@ const props = withDefaults(defineProps<{
 	mode: 'modal',
 })
 
-defineEmits(['close', 'submit'])
-
 defineOptions({
 	inheritAttrs: false,
 })
@@ -104,12 +102,26 @@ const dialogRef = ref<HTMLDialogElement | null>(null)
 const previouslyFocused = ref<Element | null>(null)
 const showDialog = ref(false)
 let closeTimer: ReturnType<typeof setTimeout> | null = null
+// Ignore close briefly after open: a leftover pointer event from the gesture
+// that opened this dialog can hit the backdrop and dismiss it immediately.
+let ignoreCloseUntil = 0
+const CLOSE_GUARD_MS = 400
+
+const emit = defineEmits(['close', 'submit'])
+
+function requestClose() {
+	if (performance.now() < ignoreCloseUntil) {
+		return
+	}
+	emit('close')
+}
 
 function openDialog() {
 	if (closeTimer) {
 		clearTimeout(closeTimer)
 		closeTimer = null
 	}
+	ignoreCloseUntil = performance.now() + CLOSE_GUARD_MS
 	previouslyFocused.value = document.activeElement
 	showDialog.value = true
 	if (props.mode !== 'side-panel') {
