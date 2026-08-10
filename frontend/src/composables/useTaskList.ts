@@ -1,6 +1,6 @@
-import {ref, shallowReactive, watch, computed, type ComputedGetter} from 'vue'
-import {useRouter, isNavigationFailure} from 'vue-router'
-import type {LocationQueryRaw} from 'vue-router'
+import {ref, shallowReactive, watch, computed, type ComputedGetter, type WritableComputedRef} from 'vue'
+import {useRoute, useRouter, isNavigationFailure} from 'vue-router'
+import type {LocationQuery, LocationQueryRaw, LocationQueryValue} from 'vue-router'
 import {useRouteQuery} from '@vueuse/router'
 
 import TaskCollectionService, {
@@ -14,6 +14,33 @@ import type {IProject} from '@/modelTypes/IProject'
 import {useAuthStore} from '@/stores/auth'
 import {useViewFiltersStore} from '@/stores/viewFilters'
 import type {IProjectView} from '@/modelTypes/IProjectView'
+
+function queryValue(raw: LocationQueryValue | LocationQueryValue[]): string | undefined {
+	const value = Array.isArray(raw) ? raw[0] : raw
+	return value ?? undefined
+}
+
+// Task detail keeps the list mounted via history.state.backdropView while the
+// real URL is /tasks/:id (no list query). Prefer that backdrop query so sort /
+// filter / search / page do not fall back to defaults and wipe viewFiltersStore.
+function useListRouteQuery(
+	name: string,
+	routeQuery: { value: string | null | undefined },
+	backdropQuery: { value: LocationQuery | null },
+): WritableComputedRef<string | undefined> {
+	return computed({
+		get() {
+			const backdrop = backdropQuery.value
+			if (backdrop) {
+				return queryValue(backdrop[name])
+			}
+			return routeQuery.value ?? undefined
+		},
+		set(value: string | undefined) {
+			routeQuery.value = value
+		},
+	})
+}
 
 export type Order = 'asc' | 'desc' | 'none'
 
@@ -114,13 +141,44 @@ export function useTaskList(
 	const projectViewId = computed(() => projectViewIdGetter())
 
 	const router = useRouter()
+	const route = useRoute()
 	const viewFiltersStore = useViewFiltersStore()
 
 	const params = ref<TaskFilterParams>({...getDefaultTaskFilterParams()})
 
-	const page = useRouteQuery('page', '1', { transform: Number })
-	const filter = useRouteQuery('filter')
-	const s = useRouteQuery('s')
+	const backdropQuery = computed(() => {
+		void route.fullPath
+		const backdrop = router.options.history.state?.backdropView
+		if (typeof backdrop !== 'string') {
+			return null
+		}
+		return router.resolve(backdrop).query
+	})
+
+	const pageRouteQuery = useRouteQuery('page', '1', { transform: Number })
+	const filterRouteQuery = useRouteQuery('filter')
+	const sRouteQuery = useRouteQuery('s')
+	const sortRouteQuery = useRouteQuery('sort')
+
+	const filter = useListRouteQuery('filter', filterRouteQuery, backdropQuery)
+	const s = useListRouteQuery('s', sRouteQuery, backdropQuery)
+	const sortQuery = useListRouteQuery('sort', sortRouteQuery, backdropQuery)
+
+	const page = computed({
+		get() {
+			const backdrop = backdropQuery.value
+			if (backdrop) {
+				const raw = queryValue(backdrop.page)
+				const parsed = raw === undefined ? 1 : Number(raw)
+				return Number.isInteger(parsed) ? parsed : 1
+			}
+			const value = pageRouteQuery.value
+			return Number.isInteger(value) ? value : 1
+		},
+		set(value: number) {
+			pageRouteQuery.value = value
+		},
+	})
 
 	watch(filter, v => { params.value.filter = v ?? '' }, { immediate: true })
 	watch(s, v => { params.value.s = v ?? '' }, { immediate: true })
@@ -128,11 +186,9 @@ export function useTaskList(
 	watch(() => params.value.filter, v => { filter.value = v || undefined })
 	watch(() => params.value.s, v => { s.value = v || undefined })
 
-	const sortQuery = useRouteQuery('sort')
-
 	const sortBy = computed<SortBy>({
 		get() {
-			const raw = sortQuery.value as string | undefined
+			const raw = sortQuery.value
 			if (!raw) return {...sortByDefault}
 			return parseSortQuery(raw, sortByDefault)
 		},

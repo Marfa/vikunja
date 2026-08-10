@@ -1192,7 +1192,10 @@ async function changeProject(project: IProject | null) {
 		...task.value,
 		projectId: project.id,
 	})
-	baseStore.setCurrentProject(project)
+	// Keep the original project context while the task editor is a modal over a list.
+	if (!isModal.value) {
+		baseStore.setCurrentProject(project)
+	}
 }
 
 async function toggleFavorite() {

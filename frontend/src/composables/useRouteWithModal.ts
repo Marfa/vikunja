@@ -1,14 +1,12 @@
 import {computed, defineAsyncComponent, h, shallowRef, type VNode, watchEffect} from 'vue'
 import {useRoute, useRouter, type RouteLocationNormalizedGeneric} from 'vue-router'
 import {useBaseStore} from '@/stores/base'
-import {useProjectStore} from '@/stores/projects'
 
 export function useRouteWithModal() {
 	const router = useRouter()
 	const route = useRoute()
-	const backdropView = computed(() => route.fullPath ? window.history.state?.backdropView : undefined)
+	const backdropView = computed(() => route.fullPath ? router.options.history.state?.backdropView : undefined)
 	const baseStore = useBaseStore()
-	const projectStore = useProjectStore()
 
 	const routeWithModal = computed(() => {
 		return backdropView.value
@@ -59,56 +57,22 @@ export function useRouteWithModal() {
 		currentModal.value = h(component, routeProps)
 	})
 
-	const historyState = computed(() => route.fullPath ? window.history.state : undefined)
+	const historyState = computed(() => route.fullPath ? router.options.history.state : undefined)
 
 	function closeModal() {
-		// If the current project was changed because the user moved the currently opened task while coming from kanban,
-		// we need to reflect that change in the route when they close the task modal.
-		// The last route is only available as resolved string, therefore we need to use a regex for matching here
-		const routeMatch = new RegExp('\\/projects\\/\\d+\\/(\\d+)', 'g')
-		const match = historyState.value?.back
-			? routeMatch.exec(historyState.value.back)
-			: null
-		if (match !== null && baseStore.currentProject && baseStore.currentProject.id !== 0) {
-			let viewId: string | number = match[1]
-
-			if (!viewId) {
-				const project = projectStore.projects[baseStore.currentProject.id]
-				viewId = project?.views?.[0]?.id
-			}
-
-			// Only navigate if we have a valid project and view
-			if (baseStore.currentProject.id && viewId) {
-				// Preserve query parameters (e.g., date range) from the backdrop view
-				const backdropRoute = historyState.value?.backdropView && router.resolve(historyState.value.backdropView)
-				const newRoute = {
-					name: 'project.view',
-					params: {
-						projectId: baseStore.currentProject.id,
-						viewId,
-					},
-					query: backdropRoute?.query || {},
-				}
-
-				router.push(newRoute)
-				return
-			}
-		}
-
-		// Try browser history first
+		// Prefer the list/project the user opened the task from. Do not follow
+		// a task that was moved to another project — stay in the original context.
 		if (historyState.value?.back) {
 			router.back()
 			return
 		}
 
-		// Try backdrop view
 		const backdropRoute = historyState.value?.backdropView && router.resolve(historyState.value.backdropView)
 		if (backdropRoute && backdropRoute.params?.projectId !== '0') {
 			router.push(backdropRoute)
 			return
 		}
 
-		// Fallback to current project or home
 		if (baseStore.currentProject && baseStore.currentProject.id !== 0) {
 			router.push({
 				name: 'project.index',

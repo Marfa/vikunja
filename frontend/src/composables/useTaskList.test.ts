@@ -18,6 +18,7 @@ vi.mock('@/services/taskCollection', async (importOriginal) => {
 })
 
 import {useTaskList, buildStoredQuery} from './useTaskList'
+import {useViewFiltersStore} from '@/stores/viewFilters'
 
 describe('buildStoredQuery', () => {
 	it('includes sort when set', () => {
@@ -57,17 +58,29 @@ function lastRequestParams(): Record<string, unknown> {
 	return getAll.mock.calls.at(-1)?.[1] as Record<string, unknown>
 }
 
-async function mountTaskList(query: Record<string, string>): Promise<Router> {
+async function mountTaskList(
+	query: Record<string, string>,
+	options: {
+		path?: string
+		viewId?: number
+	} = {},
+): Promise<Router> {
+	const path = options.path ?? '/'
+	const viewId = options.viewId ?? 1
 	const router = createRouter({
 		history: createMemoryHistory(),
-		routes: [{path: '/', name: 'home', component: {render: () => null}}],
+		routes: [
+			{path: '/', name: 'home', component: {render: () => null}},
+			{path: '/projects/:projectId/:viewId', name: 'project.view', component: {render: () => null}},
+			{path: '/tasks/:id', name: 'task.detail', component: {render: () => null}},
+		],
 	})
-	await router.push({path: '/', query})
+	await router.push({path, query})
 	await router.isReady()
 
 	const TestComponent = defineComponent({
 		setup() {
-			useTaskList(() => 1, () => 1)
+			useTaskList(() => 1, () => viewId)
 			return () => h('div')
 		},
 	})
@@ -111,5 +124,39 @@ describe('useTaskList sort handling for relevance ranking', () => {
 		// id always sorts last so other sort columns take precedence.
 		expect(params.sort_by).toEqual(['id'])
 		expect(params.order_by).toEqual(['desc'])
+	})
+})
+
+describe('useTaskList backdrop query while task modal is open', () => {
+	beforeEach(() => {
+		setActivePinia(createPinia())
+		getAll.mockClear()
+	})
+
+	it('keeps the list sort and stored query when navigating to a task with backdropView', async () => {
+		const viewId = 18
+		const listPath = `/projects/1/${viewId}`
+		const router = await mountTaskList(
+			{sort: 'created:asc'},
+			{path: listPath, viewId},
+		)
+
+		expect(lastRequestParams().sort_by).toEqual(['created'])
+		expect(lastRequestParams().order_by).toEqual(['asc'])
+		expect(useViewFiltersStore().getViewQuery(viewId)).toEqual({sort: 'created:asc'})
+
+		const callsBeforeModal = getAll.mock.calls.length
+		await router.push({
+			path: '/tasks/42',
+			state: {backdropView: `${listPath}?sort=created:asc`},
+		})
+		await flushPromises()
+		await nextTick()
+
+		expect(lastRequestParams().sort_by).toEqual(['created'])
+		expect(lastRequestParams().order_by).toEqual(['asc'])
+		expect(useViewFiltersStore().getViewQuery(viewId)).toEqual({sort: 'created:asc'})
+		// Opening the modal must not trigger a reload with the default sort.
+		expect(getAll.mock.calls.length).toBe(callsBeforeModal)
 	})
 })

@@ -11,6 +11,15 @@ The project consists of:
 - `desktop/` – Electron wrapper application
 - `docs/` – Documentation website
 
+## Fork remotes — Marfa/vikunja only
+
+This checkout is the **Marfa fork** (`https://github.com/Marfa/vikunja`), not upstream Vikunja.
+
+- Push, open PRs, and release **only** against `Marfa/vikunja` (`origin`)
+- **Never** push to upstream Vikunja (`go-vikunja/vikunja`, `vikunja/vikunja`, code.vikunja.io, or similar)
+- **Never** open a PR into upstream Vikunja unless the user explicitly asks for that in the same message
+- When the user says "push" / "залей" / "создай PR", the default target is `Marfa/vikunja`
+
 ## API Version Policy — new work goes to /api/v2
 
 **`/api/v1` is effectively deprecated and frozen.** It still runs and is fully supported for existing clients, but it should not grow.
