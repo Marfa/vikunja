@@ -6,7 +6,7 @@ name: Instance image
 on:
   push:
     branches:
-      - feat/instance-weekday-repeat
+      - main
   workflow_dispatch:
 
 concurrency:
