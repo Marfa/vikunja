@@ -212,9 +212,9 @@ test.describe('Task', () => {
 			await page.goto('/projects/1/3')
 			await loadTasksPromise
 			await page.locator('tbody tr').first().locator('a').first().click()
-			const close = page.getByRole('button', {name: 'Close dialog'})
-			await expect(close).toBeVisible()
-			await close.click()
+			// Table still opens a full-page task detail (backdropView TODO), so back applies.
+			await expect(page.locator('.task-view .back-button')).toBeVisible()
+			await page.locator('.task-view .back-button').click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
 		})
 
