@@ -88,11 +88,20 @@ html.todoist {
 		}
 	}
 
+	// Soften in-page cards (list chrome on #fafafa). Modal/dialog cards must
+	// stay opaque — they sit on the dark scrim and become unreadable otherwise.
 	.card,
 	.has-overflow.card {
 		box-shadow: none;
 		border: none;
 		background: transparent;
+	}
+
+	.modal-dialog .card,
+	.modal-dialog .has-overflow.card,
+	.popup .card,
+	.popup .has-overflow.card {
+		background: var(--white);
 	}
 
 	.fancy-checkbox.is-circle input:focus-visible + .fancy-checkbox__icon,
