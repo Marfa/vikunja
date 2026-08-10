@@ -197,9 +197,10 @@ test.describe('Task', () => {
 			await page.goto('/projects/1/1')
 			await loadTasksPromise
 			await page.locator('.list-view .task').first().locator('a.task-link').click()
-			// List opens the task in a side panel — close, not back.
-			await expect(page.locator('.task-view .task-properties .close')).toBeVisible()
-			await page.locator('.task-view .task-properties .close').click()
+			// Side panel: Heading close is CSS-hidden on desktop; use the dialog close.
+			const close = page.getByRole('button', {name: 'Close dialog'})
+			await expect(close).toBeVisible()
+			await close.click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
 		})
 
@@ -211,8 +212,9 @@ test.describe('Task', () => {
 			await page.goto('/projects/1/3')
 			await loadTasksPromise
 			await page.locator('tbody tr').first().locator('a').first().click()
-			await expect(page.locator('.task-view .task-properties .close')).toBeVisible()
-			await page.locator('.task-view .task-properties .close').click()
+			const close = page.getByRole('button', {name: 'Close dialog'})
+			await expect(close).toBeVisible()
+			await close.click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
 		})
 
