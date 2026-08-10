@@ -15,7 +15,7 @@
 		>
 			<div
 				class="modal-container"
-				@mousedown.self.prevent.stop="requestClose"
+				@mousedown.self.prevent.stop="requestCloseFromBackdrop"
 			>
 				<BaseButton
 					:aria-label="$t('misc.closeDialog')"
@@ -84,6 +84,8 @@ const props = withDefaults(defineProps<{
 	mode: 'modal',
 })
 
+const emit = defineEmits(['close', 'submit'])
+
 defineOptions({
 	inheritAttrs: false,
 })
@@ -102,14 +104,17 @@ const dialogRef = ref<HTMLDialogElement | null>(null)
 const previouslyFocused = ref<Element | null>(null)
 const showDialog = ref(false)
 let closeTimer: ReturnType<typeof setTimeout> | null = null
-// Ignore close briefly after open: a leftover pointer event from the gesture
-// that opened this dialog can hit the backdrop and dismiss it immediately.
+// Ignore backdrop close briefly after open: a leftover pointer event from the
+// gesture that opened this dialog can hit the backdrop and dismiss it. Explicit
+// close (button / Escape) must still work immediately.
 let ignoreCloseUntil = 0
 const CLOSE_GUARD_MS = 400
 
-const emit = defineEmits(['close', 'submit'])
-
 function requestClose() {
+	emit('close')
+}
+
+function requestCloseFromBackdrop() {
 	if (performance.now() < ignoreCloseUntil) {
 		return
 	}

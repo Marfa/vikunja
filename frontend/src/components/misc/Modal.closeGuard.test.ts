@@ -27,8 +27,7 @@ describe('Modal close guard', () => {
 		vi.useRealTimers()
 	})
 
-	it('ignores backdrop close during the open guard window', async () => {
-		vi.useFakeTimers()
+	async function mountModal() {
 		const Modal = (await import('./Modal.vue')).default
 		const i18n = createI18n({
 			legacy: false,
@@ -55,6 +54,12 @@ describe('Modal close guard', () => {
 		})
 		await flushPromises()
 		await nextTick()
+		return wrapper
+	}
+
+	it('ignores backdrop close during the open guard window', async () => {
+		vi.useFakeTimers()
+		const wrapper = await mountModal()
 
 		const backdrop = wrapper.find('.modal-container')
 		await backdrop.trigger('mousedown')
@@ -62,6 +67,14 @@ describe('Modal close guard', () => {
 
 		vi.advanceTimersByTime(450)
 		await backdrop.trigger('mousedown')
+		expect(wrapper.emitted('close')).toBeTruthy()
+	})
+
+	it('still closes via the close button during the open guard window', async () => {
+		vi.useFakeTimers()
+		const wrapper = await mountModal()
+
+		await wrapper.find('.close').trigger('click')
 		expect(wrapper.emitted('close')).toBeTruthy()
 	})
 })
