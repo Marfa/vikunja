@@ -120,14 +120,13 @@
 
 
 <script setup lang="ts">
-import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, toRef} from 'vue'
+import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, toRef, defineAsyncComponent} from 'vue'
 import draggable from 'zhyswan-vuedraggable'
 
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
 import ButtonLink from '@/components/misc/ButtonLink.vue'
 import AddTask from '@/components/tasks/AddTask.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
-import TodoistTaskDayGroups from '@/components/tasks/TodoistTaskDayGroups.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'
 import Nothing from '@/components/misc/Nothing.vue'
 import Pagination from '@/components/misc/Pagination.vue'
@@ -150,6 +149,8 @@ import type {IProject} from '@/modelTypes/IProject'
 import type {IProjectView} from '@/modelTypes/IProjectView'
 import TaskPositionService from '@/services/taskPosition'
 import TaskPositionModel from '@/models/taskPosition'
+
+const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
 
 const props = defineProps<{
         isLoadingProject: boolean,

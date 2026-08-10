@@ -499,7 +499,7 @@ $modal-width: 1024px;
 
 // Docked editor: dialog itself is only the right strip (list stays clickable).
 .is-side-panel.modal-dialog {
-	--task-side-panel-width: min(42rem, 55vw);
+	--task-side-panel-width: min(32rem, 40vw);
 	background: var(--site-background);
 	color: var(--text);
 	inset-block: 0;

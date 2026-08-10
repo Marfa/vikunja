@@ -284,15 +284,9 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
-// Reserve space so the docked task editor does not cover the task list.
+// Overlay the docked editor without shrinking the task list (avoids full reflow).
 html.has-task-side-panel {
-	--task-side-panel-width: min(42rem, 55vw);
-}
-
-html.has-task-side-panel .app-content {
-	@media screen and (min-width: $tablet) {
-		padding-inline-end: var(--task-side-panel-width);
-	}
+	--task-side-panel-width: min(32rem, 40vw);
 }
 
 html.has-task-side-panel .keyboard-shortcuts-button {

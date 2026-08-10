@@ -64,3 +64,9 @@ The contents of [`desktop/`](desktop/) are licensed under
 ### Unsplash Images
 
 Background images from Unsplash are distributed under the [Unsplash License](https://unsplash.com/license). The license requires giving credit to the photographer and Unsplash. See [Unsplash’s terms](https://unsplash.com/terms) for more information.
+
+## Marfa fork
+
+Код подготовлен с помощью [Cursor](https://cursor.com/).
+
+Поддержка проекта: [Донат](https://www.donationalerts.com/r/themarfa) · [Крипто](https://nowpayments.io/donation/themarfa)

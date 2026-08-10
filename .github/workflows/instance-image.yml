@@ -1,7 +1,7 @@
 name: Instance image
 
 # Build API image + nginx frontend for todo.themarfa.name.
-# Runs on GitHub (not the 1.8 GiB VPS). Deploy with tooling/_deploy_from_ghcr.py.
+# Runs on GitHub (not the 1.8 GiB VPS). Deploy job pulls GHCR via tooling/_deploy_from_ghcr.py.
 
 on:
   push:
@@ -54,6 +54,8 @@ jobs:
   image:
     name: API image → GHCR
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
@@ -89,3 +91,74 @@ jobs:
             RELEASE_VERSION=${{ env.RELEASE_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Requires repo secrets: INSTANCE_DEPLOY_HOST, INSTANCE_DEPLOY_SSH_KEY
+  # Optional: INSTANCE_DEPLOY_USER (default root). Skips when host secret is unset.
+  deploy:
+    name: Deploy VPS from GHCR
+    needs: [frontend, image]
+    runs-on: ubuntu-latest
+    if: github.repository == 'Marfa/vikunja' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Require deploy secrets
+        id: gate
+        env:
+          HOST: ${{ secrets.INSTANCE_DEPLOY_HOST }}
+          KEY: ${{ secrets.INSTANCE_DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$KEY" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "INSTANCE_DEPLOY_HOST / INSTANCE_DEPLOY_SSH_KEY not set — skipping deploy"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.skip == 'false'
+
+      - uses: actions/download-artifact@v4
+        if: steps.gate.outputs.skip == 'false'
+        with:
+          name: frontend-dist
+          path: /tmp/vikunja-deploy
+
+      - name: Install SSH key
+        if: steps.gate.outputs.skip == 'false'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.INSTANCE_DEPLOY_SSH_KEY }}
+
+      - name: Trust host
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          HOST: ${{ secrets.INSTANCE_DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload deploy assets
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          HOST: ${{ secrets.INSTANCE_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.INSTANCE_DEPLOY_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          scp /tmp/vikunja-deploy/frontend-dist.tar.gz \
+            tooling/_deploy_from_ghcr.py \
+            "${USER}@${HOST}:/tmp/"
+
+      - name: Pull GHCR + restart (no build)
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          HOST: ${{ secrets.INSTANCE_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.INSTANCE_DEPLOY_USER }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:instance-latest
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh "${USER}@${HOST}" \
+            "GHCR_TOKEN=$(printf %q "$GHCR_TOKEN") GHCR_USER=$(printf %q "$GHCR_USER") \
+             python3 /tmp/_deploy_from_ghcr.py \
+              --image $(printf %q "$IMAGE") \
+              --frontend-tar /tmp/frontend-dist.tar.gz"

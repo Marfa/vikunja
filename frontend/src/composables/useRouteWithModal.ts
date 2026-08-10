@@ -60,16 +60,20 @@ export function useRouteWithModal() {
 	const historyState = computed(() => route.fullPath ? router.options.history.state : undefined)
 
 	function closeModal() {
-		// Prefer the list/project the user opened the task from. Do not follow
-		// a task that was moved to another project — stay in the original context.
-		if (historyState.value?.back) {
-			router.back()
-			return
+		// Always prefer the list the user opened from. Do not follow a task that
+		// was moved to another project, and do not trust history.back alone —
+		// it can diverge from backdropView after intermediate navigations.
+		const backdrop = historyState.value?.backdropView
+		if (typeof backdrop === 'string' && backdrop !== '') {
+			const backdropRoute = router.resolve(backdrop)
+			if (backdropRoute.params?.projectId !== '0') {
+				router.push(backdropRoute)
+				return
+			}
 		}
 
-		const backdropRoute = historyState.value?.backdropView && router.resolve(historyState.value.backdropView)
-		if (backdropRoute && backdropRoute.params?.projectId !== '0') {
-			router.push(backdropRoute)
+		if (historyState.value?.back) {
+			router.back()
 			return
 		}
 

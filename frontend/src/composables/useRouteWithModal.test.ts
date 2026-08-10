@@ -69,10 +69,12 @@ describe('useRouteWithModal closeModal', () => {
 		// Simulate the old move behavior that switched the highlighted project.
 		baseStore.setCurrentProject(new ProjectModel({id: 2, title: 'Other'}))
 
+		const backSpy = vi.spyOn(router, 'back')
 		closeModal()
 		await flushPromises()
 		await nextTick()
 
+		expect(backSpy).not.toHaveBeenCalled()
 		expect(router.currentRoute.value.name).toBe('project.view')
 		expect(router.currentRoute.value.params.projectId).toBe('1')
 		expect(router.currentRoute.value.params.viewId).toBe('10')

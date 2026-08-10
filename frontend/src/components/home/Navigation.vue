@@ -12,133 +12,16 @@
 			class="menu top-menu"
 			:aria-label="$t('navigation.main')"
 		>
-			<template v-if="isTodoist">
-				<div class="todoist-sidebar-header">
-					<span class="todoist-user-name">{{ authStore.userDisplayName }}</span>
-				</div>
-				<BaseButton
-					class="todoist-add-task"
-					@click="openQuickActions"
-				>
-					<span class="todoist-add-task__icon">
-						<Icon icon="plus" />
-					</span>
-					{{ $t('navigation.addTask') }}
-				</BaseButton>
-			</template>
-			<RouterLink
+			<NavigationTodoistTop
+				v-if="isTodoist"
+				:user-display-name="authStore.userDisplayName"
+				:inbox-project="inboxProject"
+				@add-task="openQuickActions"
+			/>
+			<NavigationDefaultTop
 				v-else
-				:to="{name: 'home'}"
-				class="logo"
-				:aria-label="$t('navigation.home')"
-			>
-				<Logo
-					width="164"
-					height="48"
-				/>
-			</RouterLink>
-			<menu class="menu-list other-menu-items">
-				<template v-if="isTodoist">
-					<li v-if="inboxProject">
-						<RouterLink
-							v-shortcut="'KeyG KeyI'"
-							:to="{ name: 'project.index', params: { projectId: inboxProject.id } }"
-						>
-							<span class="menu-item-icon icon">
-								<Icon icon="inbox" />
-							</span>
-							{{ $t('project.inboxTitle') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyO'"
-							:to="{ name: 'home'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon :icon="['far', 'sun']" />
-							</span>
-							{{ $t('navigation.today') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyU'"
-							:to="{ name: 'tasks.range'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon :icon="['far', 'calendar-alt']" />
-							</span>
-							{{ $t('navigation.upcoming') }}
-						</RouterLink>
-					</li>
-				</template>
-				<template v-else>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyO'"
-							:to="{ name: 'home'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon icon="calendar" />
-							</span>
-							{{ $t('navigation.overview') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyU'"
-							:to="{ name: 'tasks.range'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon :icon="['far', 'calendar-alt']" />
-							</span>
-							{{ $t('navigation.upcoming') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyP'"
-							:to="{ name: 'projects.index'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon icon="layer-group" />
-							</span>
-							{{ $t('project.projects') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyA'"
-							:to="{ name: 'labels.index'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon icon="tags" />
-							</span>
-							{{ $t('label.title') }}
-						</RouterLink>
-					</li>
-					<li>
-						<RouterLink
-							v-shortcut="'KeyG KeyM'"
-							:to="{ name: 'teams.index'}"
-						>
-							<span class="menu-item-icon icon">
-								<Icon icon="users" />
-							</span>
-							{{ $t('team.title') }}
-						</RouterLink>
-					</li>
-					<li v-if="timeTrackingEnabled">
-						<RouterLink :to="{ name: 'time-tracking'}">
-							<span class="menu-item-icon icon">
-								<Icon :icon="['far', 'clock']" />
-							</span>
-							{{ $t('timeTracking.title') }}
-						</RouterLink>
-					</li>
-				</template>
-			</menu>
+				:time-tracking-enabled="timeTrackingEnabled"
+			/>
 		</nav>
 
 		<Loading
@@ -257,9 +140,8 @@
 import {computed} from 'vue'
 
 import PoweredByLink from '@/components/home/PoweredByLink.vue'
-import Logo from '@/components/home/Logo.vue'
 import Loading from '@/components/misc/Loading.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import {createAsyncComponent} from '@/helpers/createAsyncComponent'
 
 import {useBaseStore} from '@/stores/base'
 import {useProjectStore} from '@/stores/projects'
@@ -270,6 +152,11 @@ import ProjectsNavigation from '@/components/home/ProjectsNavigation.vue'
 import type {IProject} from '@/modelTypes/IProject'
 import {useSidebarResize} from '@/composables/useSidebarResize'
 import {useUiSkin} from '@/composables/useUiSkin'
+
+// Skin-specific menus live in separate chunks so Todoist instances
+// do not download the default nav (and vice versa) until a skin switch.
+const NavigationTodoistTop = createAsyncComponent(() => import('@/components/home/NavigationTodoistTop.vue'))
+const NavigationDefaultTop = createAsyncComponent(() => import('@/components/home/NavigationDefaultTop.vue'))
 
 const baseStore = useBaseStore()
 const projectStore = useProjectStore()
@@ -306,18 +193,6 @@ function openQuickActions() {
 </script>
 
 <style lang="scss" scoped>
-.logo {
-	display: block;
-
-	padding-inline-start: 1rem;
-	margin-inline-end: 1rem;
-	margin-block-end: 1rem;
-
-	@media screen and (min-width: $tablet) {
-		display: none;
-	}
-}
-
 .menu-container {
 	--sidebar-width: #{$navbar-width};
 
@@ -372,7 +247,7 @@ function openQuickActions() {
 	}
 }
 
-.top-menu .menu-list {
+.top-menu :deep(.menu-list) {
 	li {
 		font-weight: 600;
 		font-family: $vikunja-font;
@@ -391,50 +266,6 @@ function openQuickActions() {
 
 .menu + .menu {
 	padding-block-start: math.div($navbar-padding, 2);
-}
-
-.todoist-sidebar-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0 1rem 0.75rem;
-}
-
-.todoist-user-name {
-	font-weight: 700;
-	font-size: 0.95rem;
-	color: var(--text-strong);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.todoist-add-task {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	margin: 0 0.75rem 0.75rem;
-	padding: 0.45rem 0.75rem;
-	border-radius: 8px;
-	color: var(--primary);
-	font-weight: 600;
-	inline-size: calc(100% - 1.5rem);
-
-	&:hover {
-		background: rgba(0, 0, 0, 0.04);
-	}
-}
-
-.todoist-add-task__icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	inline-size: 1.5rem;
-	block-size: 1.5rem;
-	border-radius: 50%;
-	background: var(--primary);
-	color: #ffffff;
-	font-size: 0.75rem;
 }
 
 .todoist-projects-label {

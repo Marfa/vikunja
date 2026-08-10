@@ -25,7 +25,7 @@ export default class UserSettingsModel extends AbstractModel<IUserSettings> impl
 		playSoundWhenDone: true,
 		quickAddMagicMode: PrefixMode.Default,
 		colorSchema: 'auto',
-		uiSkin: UI_SKIN.DEFAULT,
+		uiSkin: UI_SKIN.TODOIST,
 		allowIconChanges: true,
 		filterIdUsedOnOverview: null,
 		defaultView: DEFAULT_PROJECT_VIEW_SETTINGS.FIRST,

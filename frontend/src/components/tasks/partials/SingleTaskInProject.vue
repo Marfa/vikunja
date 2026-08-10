@@ -234,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch, shallowReactive, onMounted, computed} from 'vue'
+import {ref, watch, shallowReactive, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 
@@ -264,7 +264,6 @@ import {useProjectStore} from '@/stores/projects'
 import {useBaseStore} from '@/stores/base'
 import {useTaskStore} from '@/stores/tasks'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
-import {useIntervalFn} from '@vueuse/core'
 import {playPopSound} from '@/helpers/playPop'
 import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
@@ -296,12 +295,16 @@ const {isTodoist} = useUiSkin()
 const isTodoistLayout = computed(() => isTodoist.value)
 
 function getTaskById(taskId: number): ITask | undefined {
-	if (typeof props.allTasks === 'undefined' || props.allTasks.length === 0) {
-		return null
-	}
-
-	return props.allTasks.find(t => t.id === taskId)
+	return tasksById.value.get(taskId)
 }
+
+const tasksById = computed(() => {
+	const map = new Map<number, ITask>()
+	for (const t of props.allTasks) {
+		map.set(t.id, t)
+	}
+	return map
+})
 
 const {t} = useI18n({useScope: 'global'})
 const router = useRouter()
@@ -316,10 +319,7 @@ watch(
 	newVal => {
 		task.value = newVal
 	},
-	{
-		immediate: true,
-		deep: true,
-	},
+	{immediate: true},
 )
 
 const baseStore = useBaseStore()
@@ -347,6 +347,7 @@ const taskDetailRoute = computed(() => ({
 
 function updateDueDate() {
 	if (!task.value.dueDate) {
+		dueDateFormatted.value = ''
 		return
 	}
 
@@ -354,14 +355,9 @@ function updateDueDate() {
 }
 
 const dueDateFormatted = ref('')
-useIntervalFn(updateDueDate, 60_000, {
-	immediateCallback: true,
-})
-onMounted(updateDueDate)
-
-watch(() => task.value.dueDate, updateDueDate)
-
 const {now} = useGlobalNow()
+watch([() => task.value.dueDate, now], updateDueDate, {immediate: true})
+
 const isOverdue = computed(() => (
 	!task.value.done &&
 	task.value.dueDate !== null &&

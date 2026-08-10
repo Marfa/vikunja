@@ -698,6 +698,7 @@ import Reactions from '@/components/input/Reactions.vue'
 import {uploadFile} from '@/helpers/attachments'
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 import {isAppleDevice} from '@/helpers/isAppleDevice'
+import {resolveLeaveProjectContext} from '@/helpers/resolveLeaveProjectContext'
 import {scrollIntoView} from '@/helpers/scrollIntoView'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
 import {REMINDER_PERIOD_RELATIVE_TO_TYPES} from '@/types/IReminderPeriodRelativeTo'
@@ -772,7 +773,29 @@ const lastProject = computed(() => {
 	return projectStore.projects[id] ?? null
 })
 
-const lastProjectOrTaskProject = computed(() => lastProject.value ?? project.value)
+const project = computed(() => projectStore.projects[task.value.projectId])
+
+// Project the user opened this editor from (backdrop), never the task's current
+// project after a move. Used for leave/close so the sidebar stays on origin.
+const originProject = computed(() => {
+	if (!props.backdropView) {
+		return null
+	}
+	const resolved = router.resolve(props.backdropView)
+	const rawId = resolved.params.projectId
+	const id = typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId)
+	if (!Number.isFinite(id)) {
+		return null
+	}
+	return projectStore.projects[id] ?? null
+})
+
+const leaveProjectContext = computed(() => resolveLeaveProjectContext({
+	backdropView: props.backdropView,
+	originProject: originProject.value,
+	lastProject: lastProject.value,
+	taskProject: project.value,
+}))
 
 // Use Shift+R on macOS (Alt+R produces special characters depending on keyboard layout)
 // Use Alt+r on other platforms
@@ -786,14 +809,14 @@ onBeforeRouteLeave(async () => {
 		return
 	}
 
-	if (!lastProjectOrTaskProject.value) {
+	if (!leaveProjectContext.value) {
 		await new Promise<void>((resolve) => {
 			const timeout = setTimeout(() => {
 				stop()
 				resolve()
 			}, 5000) // 5 second timeout
 			
-			const stop = watch(lastProjectOrTaskProject, (p) => {
+			const stop = watch(leaveProjectContext, (p) => {
 				if (p) {
 					clearTimeout(timeout)
 					stop()
@@ -803,8 +826,8 @@ onBeforeRouteLeave(async () => {
 		})
 	}
 
-	if (lastProjectOrTaskProject.value) {
-		await baseStore.handleSetCurrentProjectIfNotSet(lastProjectOrTaskProject.value)
+	if (leaveProjectContext.value) {
+		await baseStore.handleSetCurrentProjectIfNotSet(leaveProjectContext.value)
 	}
 })
 
@@ -819,13 +842,14 @@ const taskColor = ref<ITask['hexColor']>('')
 // Used to avoid flashing of empty elements if the task content is not yet loaded.
 const visible = ref(false)
 
-const project = computed(() => projectStore.projects[task.value.projectId])
-
-const projectRoute = computed(() => ({
-	name: 'project.index',
-	params: {projectId: task.value.projectId},
-	hash: route.hash,
-}))
+const projectRoute = computed(() => {
+	const projectId = originProject.value?.id ?? task.value.projectId
+	return {
+		name: 'project.index' as const,
+		params: {projectId},
+		hash: route.hash,
+	}
+})
 
 const canWrite = computed(() => (
 	task.value.maxPermission !== null &&

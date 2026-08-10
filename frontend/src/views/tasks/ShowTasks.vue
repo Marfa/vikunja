@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch, watchEffect} from 'vue'
+import {computed, ref, watch, watchEffect, defineAsyncComponent} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import dayjs from 'dayjs'
@@ -149,8 +149,6 @@ import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
 import DatepickerWithRange from '@/components/date/DatepickerWithRange.vue'
 import XLabel from '@/components/tasks/partials/Label.vue'
-import TodoistTaskDayGroups from '@/components/tasks/TodoistTaskDayGroups.vue'
-import UpcomingWeekStrip from '@/components/tasks/UpcomingWeekStrip.vue'
 import {DATE_RANGES} from '@/components/date/dateRanges'
 import LlamaCool from '@/assets/llama-cool.svg?component'
 import type {ITask} from '@/modelTypes/ITask'
@@ -162,6 +160,9 @@ import type {TaskFilterParams} from '@/services/taskCollection'
 import TaskCollectionService from '@/services/taskCollection'
 import {PERMISSIONS} from '@/constants/permissions'
 import {useUiSkin} from '@/composables/useUiSkin'
+
+const TodoistTaskDayGroups = defineAsyncComponent(() => import('@/components/tasks/TodoistTaskDayGroups.vue'))
+const UpcomingWeekStrip = defineAsyncComponent(() => import('@/components/tasks/UpcomingWeekStrip.vue'))
 
 const props = withDefaults(defineProps<{
 	dateFrom?: Date | string,
