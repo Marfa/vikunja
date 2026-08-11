@@ -17,24 +17,30 @@
 package migration
 
 import (
+	"code.vikunja.io/api/pkg/config"
+
 	"src.techknowlogick.com/xormigrate"
 	"xorm.io/xorm"
 )
 
-type tasks20260811081609 struct {
-	RepeatMonthDays string `xorm:"varchar(128) null" json:"repeat_month_days"`
-}
-
-func (tasks20260811081609) TableName() string {
-	return "tasks"
-}
-
 func init() {
 	migrations = append(migrations, &xormigrate.Migration{
-		ID:          "20260811081609",
-		Description: "Add repeat_month_days column to tasks",
+		ID:          "20260811090100",
+		Description: "Store repeat_month_days as varchar so Postgres DISTINCT works",
 		Migrate: func(tx *xorm.Engine) error {
-			return partialSync(tx, tasks20260811081609{})
+			// Fresh installs already get varchar from 20260811081609; this converts
+			// databases that ran the earlier JSON variant.
+			switch config.DatabaseType.GetString() {
+			case "postgres":
+				_, err := tx.Exec("ALTER TABLE tasks ALTER COLUMN repeat_month_days TYPE varchar(128) USING repeat_month_days::text")
+				return err
+			case "mysql":
+				_, err := tx.Exec("ALTER TABLE tasks MODIFY COLUMN repeat_month_days varchar(128) NULL")
+				return err
+			default:
+				// SQLite affinity already treats the column as TEXT.
+				return nil
+			}
 		},
 		Rollback: func(tx *xorm.Engine) error {
 			return nil

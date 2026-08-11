@@ -1284,7 +1284,7 @@ func TestUpdateDone(t *testing.T) {
 				oldTask := &Task{
 					Done:            false,
 					RepeatMode:      TaskRepeatModeMonthDays,
-					RepeatMonthDays: []int{10, 20},
+					RepeatMonthDays: RepeatMonthDayList{10, 20},
 					DueDate:         due,
 				}
 				newTask := &Task{Done: true}
@@ -1301,7 +1301,7 @@ func TestUpdateDone(t *testing.T) {
 				oldTask := &Task{
 					Done:            false,
 					RepeatMode:      TaskRepeatModeMonthDays,
-					RepeatMonthDays: []int{10, 20},
+					RepeatMonthDays: RepeatMonthDayList{10, 20},
 					DueDate:         due,
 				}
 				newTask := &Task{Done: true}
@@ -1316,7 +1316,7 @@ func TestUpdateDone(t *testing.T) {
 				oldTask := &Task{
 					Done:            false,
 					RepeatMode:      TaskRepeatModeMonthDays,
-					RepeatMonthDays: []int{31},
+					RepeatMonthDays: RepeatMonthDayList{31},
 					DueDate:         due,
 				}
 				newTask := &Task{Done: true}

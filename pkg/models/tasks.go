@@ -17,6 +17,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"regexp"
@@ -53,6 +54,32 @@ const (
 	TaskRepeatModeMonthDays
 )
 
+// RepeatMonthDayList is stored as varchar JSON text so Postgres SELECT DISTINCT
+// on tasks.* works (native json has no equality operator).
+type RepeatMonthDayList []int
+
+// FromDB implements xorm Conversion.
+func (d *RepeatMonthDayList) FromDB(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		*d = nil
+		return nil
+	}
+	var days []int
+	if err := json.Unmarshal(data, &days); err != nil {
+		return err
+	}
+	*d = days
+	return nil
+}
+
+// ToDB implements xorm Conversion.
+func (d *RepeatMonthDayList) ToDB() ([]byte, error) {
+	if d == nil || len(*d) == 0 {
+		return nil, nil
+	}
+	return json.Marshal([]int(*d))
+}
+
 // MaxTaskRepeatAfterSeconds caps repeat_after at ten years. Sized to
 // stay far from int64 overflow when multiplied out in nanoseconds, and
 // ten years is already well past any legitimate recurrence.
@@ -78,11 +105,11 @@ func validateTaskForCreation(t *Task) error {
 }
 
 func validateRepeatMonthDays(t *Task) error {
-	days, err := normalizeRepeatMonthDays(t.RepeatMonthDays)
+	days, err := normalizeRepeatMonthDays([]int(t.RepeatMonthDays))
 	if err != nil {
 		return err
 	}
-	t.RepeatMonthDays = days
+	t.RepeatMonthDays = RepeatMonthDayList(days)
 	if t.RepeatMode == TaskRepeatModeMonthDays && len(days) == 0 {
 		return ErrInvalidRepeatMonthDays{}
 	}
@@ -136,7 +163,8 @@ type Task struct {
 	// Repeat modes when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date, 3 = next weekday (Mon–Fri), 4 = next day in repeat_month_days.
 	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date, 3 = next weekday Mon-Fri (ignores repeat_after), 4 = next day listed in repeat_month_days."`
 	// Days of the month (1–31) used when RepeatMode is TaskRepeatModeMonthDays. Invalid days for a given month are skipped.
-	RepeatMonthDays []int `xorm:"JSON null" json:"repeat_month_days,omitempty" doc:"Days of the month (1-31) this task repeats on when repeat_mode is 4. Days that do not exist in a month are skipped."`
+	// Stored as varchar (JSON text), not native json — Postgres DISTINCT cannot compare json columns.
+	RepeatMonthDays RepeatMonthDayList `xorm:"varchar(128) null" json:"repeat_month_days,omitempty" doc:"Days of the month (1-31) this task repeats on when repeat_mode is 4. Days that do not exist in a month are skipped."`
 	// The task priority. Can be anything you want, it is possible to sort by this later.
 	Priority int64 `xorm:"bigint null" json:"priority"`
 	// When this task starts.
@@ -2007,7 +2035,7 @@ func nextMonthDayOccurrence(t time.Time, days []int) time.Time {
 }
 
 func setTaskDatesMonthDaysRepeat(oldTask, newTask *Task) {
-	days := oldTask.RepeatMonthDays
+	days := []int(oldTask.RepeatMonthDays)
 	if len(days) == 0 {
 		return
 	}
