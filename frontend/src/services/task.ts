@@ -97,6 +97,9 @@ export default class TaskService extends AbstractService<ITask> {
 		model.repeatAfter = repeatAfterSeconds
 
 		model.repeatMode = Number(model.repeatMode) || 0
+		model.repeatMonthDays = Array.isArray(model.repeatMonthDays)
+			? model.repeatMonthDays.map(Number).filter(d => d >= 1 && d <= 31)
+			: []
 
 		model.hexColor = colorFromHex(model.hexColor)
 

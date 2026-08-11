@@ -75,6 +75,7 @@ export default class TaskModel extends AbstractModel<ITask> implements ITask {
 	repeatAfter: number | IRepeatAfter = 0
 	repeatFromCurrentDate = false
 	repeatMode: IRepeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+	repeatMonthDays: number[] = []
 	reminders: ITaskReminder[] = []
 	parentTaskId: ITask['id'] = 0
 	hexColor = ''
@@ -128,6 +129,9 @@ export default class TaskModel extends AbstractModel<ITask> implements ITask {
 		// Parse the repeat after into something usable
 		this.repeatAfter = parseRepeatAfter(this.repeatAfter as number)
 		this.repeatMode = Number(this.repeatMode) as IRepeatMode
+		this.repeatMonthDays = Array.isArray(this.repeatMonthDays)
+			? this.repeatMonthDays.map(Number).filter(d => d >= 1 && d <= 31)
+			: []
 
 		this.reminders = this.reminders.map(r => new TaskReminderModel(r))
 

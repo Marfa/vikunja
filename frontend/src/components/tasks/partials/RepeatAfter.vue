@@ -29,6 +29,13 @@
 			>
 				{{ $t('task.repeat.everyMonth') }}
 			</XButton>
+			<XButton
+				variant="secondary"
+				class="is-small preset"
+				@click="() => setMonthDays([10, 20])"
+			>
+				{{ $t('task.repeat.every10And20') }}
+			</XButton>
 		</div>
 		<div class="is-flex is-align-items-center mbe-2 mode-row">
 			<label
@@ -50,6 +57,9 @@
 						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_MONTH)">
 							{{ $t('task.repeat.monthly') }}
 						</option>
+						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS)">
+							{{ $t('task.repeat.monthDays') }}
+						</option>
 						<option :value="String(TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE)">
 							{{ $t('task.repeat.fromCurrentDate') }}
 						</option>
@@ -58,6 +68,27 @@
 						</option>
 					</select>
 				</div>
+			</div>
+		</div>
+		<div
+			v-if="showMonthDayPicker"
+			class="month-days mbe-2"
+		>
+			<p class="month-days-hint">
+				{{ $t('task.repeat.monthDaysHint') }}
+			</p>
+			<div class="month-days-grid">
+				<button
+					v-for="day in 31"
+					:key="day"
+					type="button"
+					class="month-day"
+					:class="{'is-selected': selectedMonthDays.includes(day)}"
+					:disabled="disabled || undefined"
+					@click="toggleMonthDay(day)"
+				>
+					{{ day }}
+				</button>
 			</div>
 		</div>
 		<div
@@ -116,6 +147,7 @@ import type {ITask} from '@/modelTypes/ITask'
 export type RepeatAfterUpdate = {
 	repeatMode: IRepeatMode
 	repeatAfter: IRepeatAfter
+	repeatMonthDays: number[]
 }
 
 const props = withDefaults(defineProps<{
@@ -136,10 +168,17 @@ const repeatAfter = reactive<IRepeatAfter>({
 	amount: 0,
 	type: 'days',
 })
+const selectedMonthDays = ref<number[]>([])
 
 const showIntervalFields = computed(() => {
 	const mode = Number(repeatMode.value)
-	return mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH && mode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
+	return mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH &&
+		mode !== TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS &&
+		mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS
+})
+
+const showMonthDayPicker = computed(() => {
+	return Number(repeatMode.value) === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS
 })
 
 watch(
@@ -155,6 +194,9 @@ watch(
 				type: value.repeatAfter.type || 'days',
 			})
 		}
+		selectedMonthDays.value = Array.isArray(value.repeatMonthDays)
+			? [...value.repeatMonthDays].map(Number).filter(d => d >= 1 && d <= 31).sort((a, b) => a - b)
+			: []
 	},
 	{
 		immediate: true,
@@ -166,14 +208,14 @@ function coerceMode(mode: unknown): IRepeatMode {
 	return Number(mode) as IRepeatMode
 }
 
-/** Emit a plain DTO — never the reactive task Proxy. */
-function emitUpdate(mode: IRepeatMode, after: IRepeatAfter) {
+function emitUpdate(mode: IRepeatMode, after: IRepeatAfter, days: number[]) {
 	emit('update:modelValue', {
 		repeatMode: coerceMode(mode),
 		repeatAfter: {
 			amount: Number(after.amount) || 0,
 			type: after.type || 'days',
 		},
+		repeatMonthDays: [...days].sort((a, b) => a - b),
 	})
 }
 
@@ -197,7 +239,12 @@ function updateData() {
 		repeatAfter.type = 'days'
 	}
 
-	emitUpdate(mode, repeatAfter)
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS && selectedMonthDays.value.length === 0) {
+		error({message: t('task.repeat.invalidMonthDays')})
+		return
+	}
+
+	emitUpdate(mode, repeatAfter, selectedMonthDays.value)
 }
 
 function handleModeChange(event: Event) {
@@ -207,15 +254,27 @@ function handleModeChange(event: Event) {
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
 		repeatAfter.amount = 1
 		repeatAfter.type = 'days'
-		emitUpdate(mode, repeatAfter)
+		selectedMonthDays.value = []
+		emitUpdate(mode, repeatAfter, selectedMonthDays.value)
 		return
 	}
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH) {
 		repeatAfter.amount = 0
 		repeatAfter.type = 'days'
-		emitUpdate(mode, repeatAfter)
+		selectedMonthDays.value = []
+		emitUpdate(mode, repeatAfter, selectedMonthDays.value)
 		return
 	}
+	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS) {
+		repeatAfter.amount = 0
+		repeatAfter.type = 'days'
+		if (selectedMonthDays.value.length === 0) {
+			selectedMonthDays.value = [10, 20]
+		}
+		emitUpdate(mode, repeatAfter, selectedMonthDays.value)
+		return
+	}
+	selectedMonthDays.value = []
 	updateData()
 }
 
@@ -223,23 +282,45 @@ function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
 	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
 	repeatAfter.amount = amount
 	repeatAfter.type = type
-	emitUpdate(repeatMode.value, repeatAfter)
+	selectedMonthDays.value = []
+	emitUpdate(repeatMode.value, repeatAfter, selectedMonthDays.value)
 }
 
-/** Same calendar day each month (short months clamp to last day). */
 function setEveryMonth() {
 	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_MONTH
 	repeatAfter.amount = 0
 	repeatAfter.type = 'days'
-	emitUpdate(repeatMode.value, repeatAfter)
+	selectedMonthDays.value = []
+	emitUpdate(repeatMode.value, repeatAfter, selectedMonthDays.value)
 }
 
-/** Every Mon–Fri. */
+function setMonthDays(days: number[]) {
+	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS
+	repeatAfter.amount = 0
+	repeatAfter.type = 'days'
+	selectedMonthDays.value = [...days].sort((a, b) => a - b)
+	emitUpdate(repeatMode.value, repeatAfter, selectedMonthDays.value)
+}
+
+function toggleMonthDay(day: number) {
+	const idx = selectedMonthDays.value.indexOf(day)
+	if (idx >= 0) {
+		selectedMonthDays.value = selectedMonthDays.value.filter(d => d !== day)
+	} else {
+		selectedMonthDays.value = [...selectedMonthDays.value, day].sort((a, b) => a - b)
+	}
+	if (selectedMonthDays.value.length === 0) {
+		return
+	}
+	emitUpdate(TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS, repeatAfter, selectedMonthDays.value)
+}
+
 function setEveryWeekday() {
 	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
 	repeatAfter.amount = 1
 	repeatAfter.type = 'days'
-	emitUpdate(repeatMode.value, repeatAfter)
+	selectedMonthDays.value = []
+	emitUpdate(repeatMode.value, repeatAfter, selectedMonthDays.value)
 }
 </script>
 
@@ -298,5 +379,40 @@ p {
 .select.is-fullwidth,
 .select.is-fullwidth select {
 	inline-size: 100%;
+}
+
+.month-days-hint {
+	margin-block-end: 0.35rem;
+	font-size: 0.85rem;
+	color: var(--grey-500, #7a7a7a);
+}
+
+.month-days-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.25rem;
+}
+
+.month-day {
+	appearance: none;
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	padding-block: 0.35rem;
+	cursor: pointer;
+
+	&.is-selected {
+		background: var(--primary, #1973ff);
+		border-color: var(--primary, #1973ff);
+		color: var(--white, #fff);
+	}
+
+	&:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 }
 </style>

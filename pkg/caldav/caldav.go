@@ -64,9 +64,10 @@ type Todo struct {
 	End         time.Time
 	DueDate     time.Time
 	Duration    time.Duration
-	RepeatAfter int64
-	RepeatMode  models.TaskRepeatMode
-	Alarms      []Alarm
+	RepeatAfter     int64
+	RepeatMode      models.TaskRepeatMode
+	RepeatMonthDays []int
+	Alarms          []Alarm
 
 	Created time.Time
 	Updated time.Time // last-mod
@@ -230,10 +231,17 @@ CREATED:` + makeCalDavTimeFromTimeStamp(t.Created)
 PRIORITY:` + strconv.Itoa(mapPriorityToCaldav(t.Priority))
 		}
 
-		if t.RepeatAfter > 0 || t.RepeatMode == models.TaskRepeatModeMonth {
+		if t.RepeatAfter > 0 || t.RepeatMode == models.TaskRepeatModeMonth || t.RepeatMode == models.TaskRepeatModeMonthDays {
 			if t.RepeatMode == models.TaskRepeatModeMonth {
 				caldavtodos += `
 RRULE:FREQ=MONTHLY;BYMONTHDAY=` + t.DueDate.Format("02") // Day of the month
+			} else if t.RepeatMode == models.TaskRepeatModeMonthDays && len(t.RepeatMonthDays) > 0 {
+				days := make([]string, len(t.RepeatMonthDays))
+				for i, d := range t.RepeatMonthDays {
+					days[i] = strconv.Itoa(d)
+				}
+				caldavtodos += `
+RRULE:FREQ=MONTHLY;BYMONTHDAY=` + strings.Join(days, ",")
 			} else {
 				freq, interval := getRruleFromInterval(t.RepeatAfter)
 				caldavtodos += `

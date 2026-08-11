@@ -49,6 +49,8 @@ const (
 	TaskRepeatModeFromCurrentDate
 	// TaskRepeatModeWeekdays advances dates to the next Mon–Fri (skips Sat/Sun).
 	TaskRepeatModeWeekdays
+	// TaskRepeatModeMonthDays advances to the next day listed in RepeatMonthDays.
+	TaskRepeatModeMonthDays
 )
 
 // MaxTaskRepeatAfterSeconds caps repeat_after at ten years. Sized to
@@ -69,7 +71,46 @@ func validateTaskForCreation(t *Task) error {
 		return ErrTaskCannotBeEmpty{}
 	}
 
-	return validateRepeatAfter(t.RepeatAfter)
+	if err := validateRepeatAfter(t.RepeatAfter); err != nil {
+		return err
+	}
+	return validateRepeatMonthDays(t)
+}
+
+func validateRepeatMonthDays(t *Task) error {
+	days, err := normalizeRepeatMonthDays(t.RepeatMonthDays)
+	if err != nil {
+		return err
+	}
+	t.RepeatMonthDays = days
+	if t.RepeatMode == TaskRepeatModeMonthDays && len(days) == 0 {
+		return ErrInvalidRepeatMonthDays{}
+	}
+	if t.RepeatMode != TaskRepeatModeMonthDays {
+		t.RepeatMonthDays = nil
+	}
+	return nil
+}
+
+// normalizeRepeatMonthDays sorts, dedupes, and rejects values outside 1–31.
+func normalizeRepeatMonthDays(days []int) ([]int, error) {
+	if len(days) == 0 {
+		return nil, nil
+	}
+	seen := make(map[int]struct{}, len(days))
+	out := make([]int, 0, len(days))
+	for _, d := range days {
+		if d < 1 || d > 31 {
+			return nil, ErrInvalidRepeatMonthDays{Day: d}
+		}
+		if _, ok := seen[d]; ok {
+			continue
+		}
+		seen[d] = struct{}{}
+		out = append(out, d)
+	}
+	sort.Ints(out)
+	return out, nil
 }
 
 // Task represents a task in a project
@@ -92,8 +133,10 @@ type Task struct {
 	ProjectID int64 `xorm:"bigint INDEX not null unique(tasks_project_index)" json:"project_id" param:"project" doc:"The id of the project this task belongs to. On create it is taken from the URL; on update, setting it to a different project moves the task (requires write access to the target project)."`
 	// An amount in seconds this task repeats itself. If this is set, when marking the task as done, it will mark itself as "undone" and then increase all remindes and the due date by its amount.
 	RepeatAfter int64 `xorm:"bigint INDEX null" json:"repeat_after" valid:"range(0|9223372036854775807)" doc:"The interval in seconds this task repeats. When set, marking the task done re-opens it and bumps its reminders and due date by this amount."`
-	// Repeat modes when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date, 3 = next weekday (Mon–Fri, ignores repeat_after).
-	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date, 3 = next weekday Mon-Fri (ignores repeat_after)."`
+	// Repeat modes when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date, 3 = next weekday (Mon–Fri), 4 = next day in repeat_month_days.
+	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date, 3 = next weekday Mon-Fri (ignores repeat_after), 4 = next day listed in repeat_month_days."`
+	// Days of the month (1–31) used when RepeatMode is TaskRepeatModeMonthDays. Invalid days for a given month are skipped.
+	RepeatMonthDays []int `xorm:"JSON null" json:"repeat_month_days" doc:"Days of the month (1-31) this task repeats on when repeat_mode is 4. Days that do not exist in a month are skipped."`
 	// The task priority. Can be anything you want, it is possible to sort by this later.
 	Priority int64 `xorm:"bigint null" json:"priority"`
 	// When this task starts.
@@ -216,7 +259,8 @@ func (t *Task) GetFrontendURL() string {
 func (t *Task) isRepeating() bool {
 	return t.RepeatAfter > 0 ||
 		t.RepeatMode == TaskRepeatModeMonth ||
-		t.RepeatMode == TaskRepeatModeWeekdays
+		t.RepeatMode == TaskRepeatModeWeekdays ||
+		t.RepeatMode == TaskRepeatModeMonthDays
 }
 
 type taskFilterConcatinator string
@@ -1298,6 +1342,7 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 		"project_id",
 		"bucket_id",
 		"repeat_mode",
+		"repeat_month_days",
 		"cover_image_attachment_id",
 	}
 
@@ -1358,12 +1403,18 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 		if !fieldSet["repeat_mode"] {
 			t.RepeatMode = ot.RepeatMode
 		}
+		if !fieldSet["repeat_month_days"] {
+			t.RepeatMonthDays = ot.RepeatMonthDays
+		}
 		if !fieldSet["cover_image_attachment_id"] {
 			t.CoverImageAttachmentID = ot.CoverImageAttachmentID
 		}
 	}
 
 	if err := validateRepeatAfter(t.RepeatAfter); err != nil {
+		return err
+	}
+	if err := validateRepeatMonthDays(t); err != nil {
 		return err
 	}
 
@@ -1582,6 +1633,10 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 	// Repeat from current date
 	if t.RepeatMode == TaskRepeatModeDefault {
 		ot.RepeatMode = TaskRepeatModeDefault
+	}
+	// Month-day list (mergo leaves the old slice when the new one is empty/nil)
+	if len(t.RepeatMonthDays) == 0 {
+		ot.RepeatMonthDays = nil
 	}
 	// Is Favorite
 	if !t.IsFavorite {
@@ -1911,6 +1966,79 @@ func setTaskDatesMonthRepeat(oldTask, newTask *Task) {
 	newTask.Done = false
 }
 
+// daysInMonth returns the number of days in month/year in loc.
+func daysInMonth(year int, month time.Month, loc *time.Location) int {
+	return time.Date(year, month+1, 0, 0, 0, 0, 0, loc).Day()
+}
+
+// nextMonthDayOccurrence returns the next timestamp strictly after t whose
+// day-of-month is in days. Days that do not exist in a month are skipped
+// (e.g. 31 in February).
+func nextMonthDayOccurrence(t time.Time, days []int) time.Time {
+	days, err := normalizeRepeatMonthDays(days)
+	if err != nil || len(days) == 0 {
+		return t
+	}
+
+	loc := t.Location()
+	if loc == nil {
+		loc = config.GetTimeZone()
+	}
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+	nsec := t.Nanosecond()
+
+	for _, d := range days {
+		if d > day && d <= daysInMonth(year, month, loc) {
+			return time.Date(year, month, d, hour, min, sec, nsec, loc)
+		}
+	}
+
+	for i := 1; i <= 48; i++ {
+		candidate := time.Date(year, month+time.Month(i), 1, hour, min, sec, nsec, loc)
+		last := daysInMonth(candidate.Year(), candidate.Month(), loc)
+		for _, d := range days {
+			if d <= last {
+				return time.Date(candidate.Year(), candidate.Month(), d, hour, min, sec, nsec, loc)
+			}
+		}
+	}
+	return t
+}
+
+func setTaskDatesMonthDaysRepeat(oldTask, newTask *Task) {
+	days := oldTask.RepeatMonthDays
+	if len(days) == 0 {
+		return
+	}
+
+	if !oldTask.DueDate.IsZero() {
+		newTask.DueDate = nextMonthDayOccurrence(oldTask.DueDate, days)
+	}
+
+	newTask.Reminders = oldTask.Reminders
+	if len(oldTask.Reminders) > 0 {
+		for in, r := range oldTask.Reminders {
+			newTask.Reminders[in].Reminder = nextMonthDayOccurrence(r.Reminder, days)
+		}
+	}
+
+	if !oldTask.StartDate.IsZero() && !oldTask.EndDate.IsZero() {
+		diff := oldTask.EndDate.Sub(oldTask.StartDate)
+		newTask.StartDate = nextMonthDayOccurrence(oldTask.StartDate, days)
+		newTask.EndDate = newTask.StartDate.Add(diff)
+	} else {
+		if !oldTask.StartDate.IsZero() {
+			newTask.StartDate = nextMonthDayOccurrence(oldTask.StartDate, days)
+		}
+		if !oldTask.EndDate.IsZero() {
+			newTask.EndDate = nextMonthDayOccurrence(oldTask.EndDate, days)
+		}
+	}
+
+	newTask.Done = false
+}
+
 func setTaskDatesFromCurrentDateRepeat(oldTask, newTask *Task) {
 	if oldTask.RepeatAfter == 0 {
 		return
@@ -2006,6 +2134,8 @@ func updateDone(oldTask *Task, newTask *Task) (updateDoneAt bool) {
 		switch oldTask.RepeatMode {
 		case TaskRepeatModeMonth:
 			setTaskDatesMonthRepeat(oldTask, newTask)
+		case TaskRepeatModeMonthDays:
+			setTaskDatesMonthDaysRepeat(oldTask, newTask)
 		case TaskRepeatModeFromCurrentDate:
 			setTaskDatesFromCurrentDateRepeat(oldTask, newTask)
 		case TaskRepeatModeWeekdays:

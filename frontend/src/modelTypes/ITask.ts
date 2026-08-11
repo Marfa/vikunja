@@ -34,6 +34,7 @@ export interface ITask extends IAbstract {
 	repeatAfter: number | IRepeatAfter
 	repeatFromCurrentDate: boolean
 	repeatMode: IRepeatMode
+	repeatMonthDays: number[]
 	reminders: ITaskReminder[]
 	parentTaskId: ITask['id']
 	hexColor: string

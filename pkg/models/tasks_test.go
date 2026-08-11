@@ -1277,6 +1277,56 @@ func TestUpdateDone(t *testing.T) {
 				assert.Equal(t, 30, newTask.DueDate.Day())
 			})
 		})
+		t.Run("repeat on month days", func(t *testing.T) {
+			loc := config.GetTimeZone()
+			t.Run("10th advances to 20th", func(t *testing.T) {
+				due := time.Date(2025, time.March, 10, 12, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:            false,
+					RepeatMode:      TaskRepeatModeMonthDays,
+					RepeatMonthDays: []int{10, 20},
+					DueDate:         due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.False(t, newTask.Done)
+				assert.Equal(t, time.March, newTask.DueDate.Month())
+				assert.Equal(t, 20, newTask.DueDate.Day())
+				assert.Equal(t, 12, newTask.DueDate.Hour())
+			})
+			t.Run("20th advances to 10th next month", func(t *testing.T) {
+				due := time.Date(2025, time.March, 20, 9, 30, 0, 0, loc)
+				oldTask := &Task{
+					Done:            false,
+					RepeatMode:      TaskRepeatModeMonthDays,
+					RepeatMonthDays: []int{10, 20},
+					DueDate:         due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.April, newTask.DueDate.Month())
+				assert.Equal(t, 10, newTask.DueDate.Day())
+			})
+			t.Run("skips 31 in February", func(t *testing.T) {
+				due := time.Date(2025, time.January, 31, 8, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:            false,
+					RepeatMode:      TaskRepeatModeMonthDays,
+					RepeatMonthDays: []int{31},
+					DueDate:         due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, time.March, newTask.DueDate.Month())
+				assert.Equal(t, 31, newTask.DueDate.Day())
+			})
+		})
 		t.Run("reset checklist on recurrence", func(t *testing.T) {
 			const checked = `before<ul data-type="taskList"><li data-checked="true" data-type="taskItem"><label><input type="checkbox" checked="checked"><span></span></label><div><p>Item</p></li></ul>after`
 			const unchecked = `before<ul data-type="taskList"><li data-checked="false" data-type="taskItem"><label><input type="checkbox"><span></span></label><div><p>Item</p></li></ul>after`

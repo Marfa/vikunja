@@ -208,7 +208,10 @@ const isOverdue = computed(() => (
 ))
 
 async function toggleTaskDone(task: ITask) {
-	const isRecurringTask = task.repeatAfter.amount > 0 || task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH
+	const isRecurringTask = task.repeatAfter.amount > 0 ||
+		task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH ||
+		task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS ||
+		task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
 	const wasBeingMarkedDone = !task.done
 	
 	loadingInternal.value = true

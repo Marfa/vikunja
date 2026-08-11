@@ -1063,7 +1063,9 @@ function setActiveFields() {
 	activeFields.priority = task.value.priority !== PRIORITIES.UNSET
 	activeFields.relatedTasks = Object.keys(task.value.relatedTasks).length > 0
 	activeFields.reminders = task.value.reminders.length > 0
-	activeFields.repeatAfter = task.value.repeatAfter?.amount > 0 || task.value.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+	activeFields.repeatAfter = task.value.repeatAfter?.amount > 0 ||
+		task.value.repeatMode !== TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT ||
+		(Array.isArray(task.value.repeatMonthDays) && task.value.repeatMonthDays.length > 0)
 	activeFields.startDate = task.value.startDate !== null
 }
 
@@ -1154,7 +1156,7 @@ async function saveTask(
 }
 
 /** Persist repeat fields from RepeatAfter's plain DTO (never a reactive Proxy). */
-async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter: {amount: number, type: string}} | undefined) {
+async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter: {amount: number, type: string}, repeatMonthDays?: number[]} | undefined) {
 	if (!updated || !canWrite.value) {
 		return
 	}
@@ -1167,6 +1169,9 @@ async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter
 
 	task.value.repeatMode = mode
 	task.value.repeatAfter = after
+	task.value.repeatMonthDays = Array.isArray(updated.repeatMonthDays)
+		? updated.repeatMonthDays.map(Number).filter(d => d >= 1 && d <= 31)
+		: []
 
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
 		task.value.dueDate = snapToWeekday(task.value.dueDate)
@@ -1263,6 +1268,7 @@ async function setPercentDone(percentDone: number) {
 async function removeRepeatAfter() {
 	task.value.repeatAfter.amount = 0
 	task.value.repeatMode = TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+	task.value.repeatMonthDays = []
 	await saveTask()
 }
 

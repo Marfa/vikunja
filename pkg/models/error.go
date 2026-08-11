@@ -617,6 +617,39 @@ func (err ErrInvalidTaskRepeatInterval) HTTPError() web.HTTPError {
 	}
 }
 
+// ErrInvalidRepeatMonthDays is returned when repeat_month_days is empty for
+// month-days mode or contains a value outside 1–31.
+type ErrInvalidRepeatMonthDays struct {
+	Day int
+}
+
+// IsErrInvalidRepeatMonthDays checks if an error is ErrInvalidRepeatMonthDays.
+func IsErrInvalidRepeatMonthDays(err error) bool {
+	_, ok := err.(ErrInvalidRepeatMonthDays)
+	return ok
+}
+
+func (err ErrInvalidRepeatMonthDays) Error() string {
+	if err.Day != 0 {
+		return fmt.Sprintf("Invalid repeat month day. [Day: %d]", err.Day)
+	}
+	return "Invalid repeat month days: select at least one day between 1 and 31."
+}
+
+const ErrCodeInvalidRepeatMonthDays = 4032
+
+func (err ErrInvalidRepeatMonthDays) HTTPError() web.HTTPError {
+	msg := "Select at least one day of the month between 1 and 31 for this repeat mode."
+	if err.Day != 0 {
+		msg = fmt.Sprintf("Day of month must be between 1 and 31 (got %d).", err.Day)
+	}
+	return web.HTTPError{
+		HTTPCode: http.StatusBadRequest,
+		Code:     ErrCodeInvalidRepeatMonthDays,
+		Message:  msg,
+	}
+}
+
 // ErrInvalidBulkTaskCreationCount represents an error where a bulk task creation request has no tasks or more than the maximum.
 type ErrInvalidBulkTaskCreationCount struct {
 	Count int

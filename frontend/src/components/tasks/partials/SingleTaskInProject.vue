@@ -327,7 +327,7 @@ const router = useRouter()
 const taskService = shallowReactive(new TaskService())
 const task = ref<ITask>(new TaskModel())
 
-const isRepeating = computed(() => task.value.repeatAfter.amount > 0 || (task.value.repeatAfter.amount === 0 && (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH || task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS)))
+const isRepeating = computed(() => task.value.repeatAfter.amount > 0 || (task.value.repeatAfter.amount === 0 && (task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH || task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS || task.value.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS)))
 
 const titleDisplay = computed(() => parseTaskTitleMarkdownLink(task.value.title))
 
