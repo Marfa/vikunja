@@ -323,6 +323,13 @@ $modal-width: 1024px;
 	// both values below).
 	max-block-size: calc(100dvh - 2rem);
 	overflow: auto;
+	// Confirm/hint dialogs sit on the dark scrim — need an opaque panel so
+	// title/body text stay readable (dialog itself inherits color: #fff).
+	background: var(--white);
+	color: var(--text);
+	border-radius: $radius;
+	padding: 1.5rem 1rem;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, .35);
 
 	[dir="rtl"] & {
 		transform: translate(50%, -50%);
@@ -335,6 +342,9 @@ $modal-width: 1024px;
 		// the fullscreen mobile layout flows and scrolls in .modal-container
 		max-block-size: none;
 		overflow: visible;
+		border-radius: 0;
+		box-shadow: none;
+		min-block-size: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 	}
 
 	.modal-header {
@@ -503,7 +513,6 @@ $modal-width: 1024px;
 	flex-direction: column;
 	justify-content: center;
 	padding: 0 1rem;
-	min-block-size: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 
 .modal-content :deep(.card .card-header-icon.close) {

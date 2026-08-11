@@ -1188,6 +1188,10 @@ const showDeleteModal = ref(false)
 async function deleteTask() {
 	await taskStore.delete(task.value)
 	success({message: t('task.detail.deleteSuccess')})
+	if (props.backdropView) {
+		await router.push(router.resolve(props.backdropView))
+		return
+	}
 	router.push({name: 'project.index', params: {projectId: task.value.projectId}})
 }
 

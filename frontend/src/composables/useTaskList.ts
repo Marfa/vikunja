@@ -14,6 +14,7 @@ import type {IProject} from '@/modelTypes/IProject'
 import {useAuthStore} from '@/stores/auth'
 import {useViewFiltersStore} from '@/stores/viewFilters'
 import type {IProjectView} from '@/modelTypes/IProjectView'
+import {useTaskStore} from '@/stores/tasks'
 
 function queryValue(raw: LocationQueryValue | LocationQueryValue[]): string | undefined {
 	const value = Array.isArray(raw) ? raw[0] : raw
@@ -312,6 +313,50 @@ export function useTaskList(
 
 		loadTasks()
 	}, { immediate: true })
+
+	// Side-panel editor keeps this list mounted; closing it does not change
+	// list query params, so refetch without wiping when the backdrop clears.
+	const taskStore = useTaskStore()
+	let taskModalWasOpen = false
+	watch(
+		() => {
+			// history.state is not reactive — depend on fullPath like backdropQuery.
+			void route.fullPath
+			return router.options.history.state?.backdropView as string | undefined
+		},
+		(backdrop) => {
+			if (typeof backdrop === 'string' && backdrop !== '') {
+				taskModalWasOpen = true
+				return
+			}
+			if (!taskModalWasOpen) {
+				return
+			}
+			taskModalWasOpen = false
+			loadTasks(false)
+		},
+	)
+
+	watch(
+		() => taskStore.lastUpdatedTask,
+		(updated) => {
+			if (!updated) {
+				return
+			}
+			const idx = tasks.value.findIndex(t => t.id === updated.id)
+			if (idx === -1) {
+				return
+			}
+			const listProjectId = projectIdGetter()
+			if (listProjectId > 0 && updated.projectId !== listProjectId) {
+				tasks.value = tasks.value.filter(t => t.id !== updated.id)
+				return
+			}
+			const next = [...tasks.value]
+			next[idx] = updated
+			tasks.value = next
+		},
+	)
 
 	return {
 		tasks,

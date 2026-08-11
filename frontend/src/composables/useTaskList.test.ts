@@ -2,6 +2,7 @@ import {describe, it, expect, beforeEach, vi} from 'vitest'
 import {defineComponent, h, nextTick} from 'vue'
 import {mount, flushPromises} from '@vue/test-utils'
 import {setActivePinia, createPinia} from 'pinia'
+import {createI18n} from 'vue-i18n'
 import {createRouter, createMemoryHistory, type Router} from 'vue-router'
 
 const getAll = vi.fn(async () => [])
@@ -19,6 +20,8 @@ vi.mock('@/services/taskCollection', async (importOriginal) => {
 
 import {useTaskList, buildStoredQuery} from './useTaskList'
 import {useViewFiltersStore} from '@/stores/viewFilters'
+
+const i18n = createI18n({legacy: false, locale: 'en', messages: {en: {}}})
 
 describe('buildStoredQuery', () => {
 	it('includes sort when set', () => {
@@ -85,7 +88,7 @@ async function mountTaskList(
 		},
 	})
 
-	mount(TestComponent, {global: {plugins: [router]}})
+	mount(TestComponent, {global: {plugins: [router, i18n]}})
 	await flushPromises()
 	await nextTick()
 	return router
@@ -158,5 +161,29 @@ describe('useTaskList backdrop query while task modal is open', () => {
 		expect(useViewFiltersStore().getViewQuery(viewId)).toEqual({sort: 'created:asc'})
 		// Opening the modal must not trigger a reload with the default sort.
 		expect(getAll.mock.calls.length).toBe(callsBeforeModal)
+	})
+
+	it('refetches the list without wiping when the task modal closes', async () => {
+		const viewId = 18
+		const listPath = `/projects/1/${viewId}`
+		const router = await mountTaskList(
+			{sort: 'created:asc'},
+			{path: listPath, viewId},
+		)
+
+		await router.push({
+			path: '/tasks/42',
+			state: {backdropView: `${listPath}?sort=created:asc`},
+		})
+		await flushPromises()
+		await nextTick()
+
+		const callsWhileOpen = getAll.mock.calls.length
+		await router.push({path: listPath, query: {sort: 'created:asc'}})
+		await flushPromises()
+		await nextTick()
+
+		expect(getAll.mock.calls.length).toBeGreaterThan(callsWhileOpen)
+		expect(lastRequestParams().sort_by).toEqual(['created'])
 	})
 })

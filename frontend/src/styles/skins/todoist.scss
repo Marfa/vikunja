@@ -104,9 +104,11 @@ html.todoist {
 
 	.modal-dialog .card,
 	.modal-dialog .has-overflow.card,
+	.modal-dialog .modal-content,
 	.popup .card,
 	.popup .has-overflow.card {
 		background: var(--white);
+		color: var(--text);
 	}
 
 	.fancy-checkbox.is-circle input:focus-visible + .fancy-checkbox__icon,

@@ -379,6 +379,36 @@ watch(
 	() => loadPendingTasks(props.dateFrom as Date|string, props.dateTo as Date|string, filterIdUsedOnOverview.value),
 	{immediate: true},
 )
+
+// Same as useTaskList: side-panel close does not change list props, so refetch.
+let taskModalWasOpen = false
+watch(
+	() => {
+		void route.fullPath
+		return router.options.history.state?.backdropView as string | undefined
+	},
+	(backdrop) => {
+		if (typeof backdrop === 'string' && backdrop !== '') {
+			taskModalWasOpen = true
+			return
+		}
+		if (!taskModalWasOpen) {
+			return
+		}
+		taskModalWasOpen = false
+		loadPendingTasks(props.dateFrom as Date|string, props.dateTo as Date|string, filterIdUsedOnOverview.value)
+	},
+)
+
+watch(
+	() => taskStore.lastUpdatedTask,
+	(updated) => {
+		if (updated) {
+			updateTasks(updated)
+		}
+	},
+)
+
 watchEffect(() => setTitle(pageTitle.value))
 </script>
 
