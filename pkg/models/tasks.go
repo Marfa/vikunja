@@ -136,7 +136,7 @@ type Task struct {
 	// Repeat modes when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date, 3 = next weekday (Mon–Fri), 4 = next day in repeat_month_days.
 	RepeatMode TaskRepeatMode `xorm:"not null default 0" json:"repeat_mode" doc:"How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date, 3 = next weekday Mon-Fri (ignores repeat_after), 4 = next day listed in repeat_month_days."`
 	// Days of the month (1–31) used when RepeatMode is TaskRepeatModeMonthDays. Invalid days for a given month are skipped.
-	RepeatMonthDays []int `xorm:"JSON null" json:"repeat_month_days" doc:"Days of the month (1-31) this task repeats on when repeat_mode is 4. Days that do not exist in a month are skipped."`
+	RepeatMonthDays []int `xorm:"JSON null" json:"repeat_month_days,omitempty" doc:"Days of the month (1-31) this task repeats on when repeat_mode is 4. Days that do not exist in a month are skipped."`
 	// The task priority. Can be anything you want, it is possible to sort by this later.
 	Priority int64 `xorm:"bigint null" json:"priority"`
 	// When this task starts.
@@ -1985,21 +1985,21 @@ func nextMonthDayOccurrence(t time.Time, days []int) time.Time {
 		loc = config.GetTimeZone()
 	}
 	year, month, day := t.Date()
-	hour, min, sec := t.Clock()
+	hour, minute, sec := t.Clock()
 	nsec := t.Nanosecond()
 
 	for _, d := range days {
 		if d > day && d <= daysInMonth(year, month, loc) {
-			return time.Date(year, month, d, hour, min, sec, nsec, loc)
+			return time.Date(year, month, d, hour, minute, sec, nsec, loc)
 		}
 	}
 
 	for i := 1; i <= 48; i++ {
-		candidate := time.Date(year, month+time.Month(i), 1, hour, min, sec, nsec, loc)
+		candidate := time.Date(year, month+time.Month(i), 1, hour, minute, sec, nsec, loc)
 		last := daysInMonth(candidate.Year(), candidate.Month(), loc)
 		for _, d := range days {
 			if d <= last {
-				return time.Date(candidate.Year(), candidate.Month(), d, hour, min, sec, nsec, loc)
+				return time.Date(candidate.Year(), candidate.Month(), d, hour, minute, sec, nsec, loc)
 			}
 		}
 	}

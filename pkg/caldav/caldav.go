@@ -51,19 +51,19 @@ type Todo struct {
 	UID       string
 
 	// Optional
-	Summary     string
-	Description string
-	Done        bool
-	Completed   time.Time
-	Organizer   *user.User
-	Priority    int64 // 0-9, 1 is highest
-	Relations   []Relation
-	Color       string
-	Categories  []string
-	Start       time.Time
-	End         time.Time
-	DueDate     time.Time
-	Duration    time.Duration
+	Summary         string
+	Description     string
+	Done            bool
+	Completed       time.Time
+	Organizer       *user.User
+	Priority        int64 // 0-9, 1 is highest
+	Relations       []Relation
+	Color           string
+	Categories      []string
+	Start           time.Time
+	End             time.Time
+	DueDate         time.Time
+	Duration        time.Duration
 	RepeatAfter     int64
 	RepeatMode      models.TaskRepeatMode
 	RepeatMonthDays []int
@@ -232,17 +232,18 @@ PRIORITY:` + strconv.Itoa(mapPriorityToCaldav(t.Priority))
 		}
 
 		if t.RepeatAfter > 0 || t.RepeatMode == models.TaskRepeatModeMonth || t.RepeatMode == models.TaskRepeatModeMonthDays {
-			if t.RepeatMode == models.TaskRepeatModeMonth {
+			switch {
+			case t.RepeatMode == models.TaskRepeatModeMonth:
 				caldavtodos += `
 RRULE:FREQ=MONTHLY;BYMONTHDAY=` + t.DueDate.Format("02") // Day of the month
-			} else if t.RepeatMode == models.TaskRepeatModeMonthDays && len(t.RepeatMonthDays) > 0 {
+			case t.RepeatMode == models.TaskRepeatModeMonthDays && len(t.RepeatMonthDays) > 0:
 				days := make([]string, len(t.RepeatMonthDays))
 				for i, d := range t.RepeatMonthDays {
 					days[i] = strconv.Itoa(d)
 				}
 				caldavtodos += `
 RRULE:FREQ=MONTHLY;BYMONTHDAY=` + strings.Join(days, ",")
-			} else {
+			default:
 				freq, interval := getRruleFromInterval(t.RepeatAfter)
 				caldavtodos += `
 RRULE:FREQ=` + freq + `;INTERVAL=` + strconv.FormatInt(interval, 10)

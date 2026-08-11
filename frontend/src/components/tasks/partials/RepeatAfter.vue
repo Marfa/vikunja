@@ -407,7 +407,7 @@ p {
 	&.is-selected {
 		background: var(--primary, #1973ff);
 		border-color: var(--primary, #1973ff);
-		color: var(--white, #fff);
+		color: var(--white, #ffffff);
 	}
 
 	&:disabled {
