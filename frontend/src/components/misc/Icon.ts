@@ -91,6 +91,7 @@ import {
 import {
 	faBellSlash,
 	faCalendarAlt,
+	faCalendarTimes,
 	faCheckSquare,
 	faClock,
 	faComments,
@@ -132,6 +133,7 @@ library.add(faBell)
 library.add(faBellSlash)
 library.add(faCalendar)
 library.add(faCalendarAlt)
+library.add(faCalendarTimes)
 library.add(faCheck)
 library.add(faCheckDouble)
 library.add(faChessKnight)

@@ -756,6 +756,7 @@
     "overview": "Overview",
     "today": "Today",
     "upcoming": "Upcoming",
+    "noDueDate": "No due date",
     "myProjects": "My projects",
     "addTask": "Add task",
     "settings": "Settings",

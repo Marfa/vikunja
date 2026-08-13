@@ -50,7 +50,7 @@
 			{{ $t('task.show.savedFilterIgnored') }}
 		</Message>
 		<p
-			v-if="!showAll && !useTodoistList"
+			v-if="!showAll && !onlyNoDue && !useTodoistList"
 			class="show-tasks-options"
 		>
 			<DatepickerWithRange @update:modelValue="setDate">
@@ -166,11 +166,13 @@ const props = withDefaults(defineProps<{
 	dateTo?: Date | string,
 	showNulls?: boolean,
 	showOverdue?: boolean,
+	onlyNoDue?: boolean,
 	labelIds?: string[],
 	hideTitle?: boolean,
 }>(), {
 	showNulls: false,
 	showOverdue: false,
+	onlyNoDue: false,
 	dateFrom: undefined,
 	dateTo: undefined,
 	labelIds: undefined,
@@ -202,9 +204,9 @@ const selectedStripDay = ref<Date>(new Date())
 
 setTimeout(() => showNothingToDo.value = true, 100)
 
-const showAll = computed(() => typeof props.dateFrom === 'undefined' || typeof props.dateTo === 'undefined')
+const showAll = computed(() => !props.onlyNoDue && (typeof props.dateFrom === 'undefined' || typeof props.dateTo === 'undefined'))
 const useTodoistList = computed(() => isTodoist.value)
-const useTodoistUpcoming = computed(() => isTodoist.value && !showAll.value)
+const useTodoistUpcoming = computed(() => isTodoist.value && !showAll.value && !props.onlyNoDue)
 
 const filteredLabels = computed(() => {
 	if (!props.labelIds || props.labelIds.length === 0) {
@@ -222,6 +224,9 @@ const savedFilterIgnored = computed(() => {
 })
 
 const pageTitle = computed(() => {
+	if (props.onlyNoDue) {
+		return t('navigation.noDueDate')
+	}
 	if (useTodoistUpcoming.value) {
 		return t('navigation.upcoming')
 	}
@@ -251,6 +256,12 @@ const filterIdUsedOnOverview = computed(() => authStore.settings?.frontendSettin
 const taskGroups = computed(() => {
 	if (!useTodoistList.value) {
 		return []
+	}
+	if (props.onlyNoDue) {
+		return groupTasksByDueDay(tasks.value, {
+			fillRange: null,
+			includeNoDate: true,
+		})
 	}
 	return groupTasksByDueDay(tasks.value, {
 		fillRange: showAll.value
@@ -321,12 +332,17 @@ async function loadPendingTasks(from: Date|string, to: Date|string, filterId: nu
 		sort_by: ['due_date', 'priority', 'created', 'id'],
 		order_by: ['asc', 'desc', 'asc', 'desc'],
 		filter: 'done = false',
-		filter_include_nulls: props.showNulls || showAll.value,
+		filter_include_nulls: props.onlyNoDue || props.showNulls || showAll.value,
 		s: '',
 		expand: ['comment_count', 'is_unread'],
 	}
 
-	if (!showAll.value) {
+	if (props.onlyNoDue) {
+		// No native due_date-is-null filter: match an impossible date and OR-in nulls via filter_include_nulls.
+		params.filter += ' && due_date > \'9999-12-31T23:59:59Z\''
+		params.sort_by = ['priority', 'created', 'id']
+		params.order_by = ['desc', 'asc', 'desc']
+	} else if (!showAll.value) {
 		params.filter += ` && due_date < '${to instanceof Date ? to.toISOString() : to}'`
 
 		// Todoist skin hides "show overdue"; always include past-due like Todoist Upcoming.
@@ -373,6 +389,7 @@ watch(
 		() => props.dateTo,
 		() => props.showOverdue,
 		() => props.showNulls,
+		() => props.onlyNoDue,
 		filterIdUsedOnOverview,
 		useTodoistUpcoming,
 	],

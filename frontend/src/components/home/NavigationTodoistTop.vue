@@ -45,6 +45,17 @@
 				{{ $t('navigation.upcoming') }}
 			</RouterLink>
 		</li>
+		<li>
+			<RouterLink
+				v-shortcut="'KeyG KeyN'"
+				:to="{ name: 'tasks.nodue'}"
+			>
+				<span class="menu-item-icon icon">
+					<Icon :icon="['far', 'calendar-times']" />
+				</span>
+				{{ $t('navigation.noDueDate') }}
+			</RouterLink>
+		</li>
 	</menu>
 </template>
 
