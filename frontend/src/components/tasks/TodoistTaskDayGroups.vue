@@ -8,6 +8,10 @@
 		>
 			<h3 class="todoist-day-group__title">
 				{{ group.label }}
+				<span
+					v-if="group.key === 'nodate'"
+					class="todoist-day-group__count"
+				>{{ openTaskCount(group) }}</span>
 			</h3>
 			<ul class="tasks todoist-tasks">
 				<li
@@ -77,6 +81,10 @@ const openAdd = reactive<Record<string, boolean>>({})
 function canMarkDone(task: ITask) {
 	return (projectStore.projects[task.projectId]?.maxPermission ?? 0) > PERMISSIONS.READ
 }
+
+function openTaskCount(group: TodoistDayGroup) {
+	return group.tasks.filter(task => !task.done).length
+}
 </script>
 
 <style lang="scss" scoped>
@@ -85,10 +93,20 @@ function canMarkDone(task: ITask) {
 }
 
 .todoist-day-group__title {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4rem;
 	font-size: 0.95rem;
 	font-weight: 700;
 	margin: 0 0 0.5rem;
 	color: var(--text-muted);
+}
+
+.todoist-day-group__count {
+	font-weight: 500;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	opacity: 0.75;
 }
 
 .todoist-tasks {
