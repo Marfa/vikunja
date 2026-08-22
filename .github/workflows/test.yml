@@ -12,7 +12,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: Cache Mage
         id: cache-mage
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: Build
         env:
           RELEASE_VERSION: ${{ steps.ghd.outputs.describe }}
@@ -79,6 +79,7 @@ jobs:
       - uses: ./.github/actions/golangci-lint
         with:
           working-directory: veans
+          go-version-file: veans/go.mod
 
   veans-test:
     runs-on: ubuntu-latest
@@ -86,7 +87,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: Install mage
         # The cached mage-static artifact has the parent magefile compiled
         # in — we need a generic mage binary to pick up veans/magefile.go.
@@ -251,7 +252,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: Configure Postgres for faster tests
         if: matrix.db == 'postgres' || matrix.db == 'paradedb'
         run: |
@@ -297,7 +298,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: test
         run: |
           mkdir -p frontend/dist
@@ -318,7 +319,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: test
         run: |
           mkdir -p frontend/dist
@@ -348,7 +349,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: test S3 file storage integration
         env:
           VIKUNJA_TESTS_USE_CONFIG: 1
@@ -439,7 +440,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: Install mage
         # The cached mage-static artifact has the parent magefile compiled
         # in — we need a generic mage binary to pick up veans/magefile.go.

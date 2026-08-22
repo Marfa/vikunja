@@ -20,7 +20,9 @@ import (
 	"embed"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"code.vikunja.io/api/pkg/config"
 
@@ -70,8 +72,16 @@ func InitFixtures(tablenames ...string) (err error) {
 
 // LoadFixtures load fixtures for a test database
 func LoadFixtures() error {
-	err := fixtures.Load()
-	if err != nil {
+	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		err = fixtures.Load()
+		if err == nil {
+			break
+		}
+		if attempt < 4 && isSQLiteLocked(err) {
+			time.Sleep(time.Duration(attempt+1) * 25 * time.Millisecond)
+			continue
+		}
 		return err
 	}
 
@@ -109,6 +119,10 @@ func LoadFixtures() error {
 		}
 	}
 	return nil
+}
+
+func isSQLiteLocked(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "database table is locked")
 }
 
 // LoadAndAssertFixtures loads all fixtures defined before and asserts they are correctly loaded
