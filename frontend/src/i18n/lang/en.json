@@ -1201,7 +1201,7 @@
       "everyWeekday": "Every Weekday",
       "everyWeek": "Every Week",
       "everyMonth": "Every Month",
-      "every10And20": "Every 10th & 20th",
+      "every10And20": "Every 10th & 25th",
       "mode": "Repeat mode",
       "monthly": "Monthly",
       "monthDays": "Specific days of month",
@@ -1214,6 +1214,7 @@
       "hours": "Hours",
       "days": "Days",
       "weeks": "Weeks",
+      "years": "Years",
       "invalidAmount": "Please enter more than 0."
     },
     "quickAddMagic": {

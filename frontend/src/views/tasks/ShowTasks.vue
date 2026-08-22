@@ -160,6 +160,8 @@ import type {TaskFilterParams} from '@/services/taskCollection'
 import TaskCollectionService from '@/services/taskCollection'
 import {PERMISSIONS} from '@/constants/permissions'
 import {useUiSkin} from '@/composables/useUiSkin'
+import {noDueTaskFilterParams} from '@/helpers/noDueTasksFilter'
+import {refreshNoDueTaskCount} from '@/composables/useNoDueTaskCount'
 
 const props = withDefaults(defineProps<{
 	dateFrom?: Date | string,
@@ -338,10 +340,7 @@ async function loadPendingTasks(from: Date|string, to: Date|string, filterId: nu
 	}
 
 	if (props.onlyNoDue) {
-		// No native due_date-is-null filter: match an impossible date and OR-in nulls via filter_include_nulls.
-		params.filter += ' && due_date > \'9999-12-31T23:59:59Z\''
-		params.sort_by = ['priority', 'created', 'id']
-		params.order_by = ['desc', 'asc', 'desc']
+		Object.assign(params, noDueTaskFilterParams(params.filter_timezone))
 	} else if (!showAll.value) {
 		params.filter += ` && due_date < '${to instanceof Date ? to.toISOString() : to}'`
 
@@ -363,6 +362,9 @@ async function loadPendingTasks(from: Date|string, to: Date|string, filterId: nu
 	}
 
 	tasks.value = await taskStore.loadTasks(params, projectId)
+	if (props.onlyNoDue) {
+		await refreshNoDueTaskCount()
+	}
 	emit('tasksLoaded', true)
 }
 

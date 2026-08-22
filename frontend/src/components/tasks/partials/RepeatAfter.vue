@@ -32,7 +32,7 @@
 			<XButton
 				variant="secondary"
 				class="is-small preset"
-				@click="() => setMonthDays([10, 20])"
+				@click="() => setMonthDays([10, 25])"
 			>
 				{{ $t('task.repeat.every10And20') }}
 			</XButton>
@@ -125,6 +125,9 @@
 							</option>
 							<option value="weeks">
 								{{ $t('task.repeat.weeks') }}
+							</option>
+							<option value="years">
+								{{ $t('task.repeat.years') }}
 							</option>
 						</select>
 					</div>
@@ -269,7 +272,7 @@ function handleModeChange(event: Event) {
 		repeatAfter.amount = 0
 		repeatAfter.type = 'days'
 		if (selectedMonthDays.value.length === 0) {
-			selectedMonthDays.value = [10, 20]
+			selectedMonthDays.value = [10, 25]
 		}
 		emitUpdate(mode, repeatAfter, selectedMonthDays.value)
 		return

@@ -40,6 +40,7 @@ import {runWrites} from '@/helpers/runWrites'
 import {error} from '@/message'
 import {REPEAT_TYPES} from '@/types/IRepeatAfter'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
+import {refreshNoDueTaskCount} from '@/composables/useNoDueTaskCount'
 
 interface MatchedAssignee extends IUser {
 	match: string,
@@ -190,6 +191,7 @@ export const useTaskStore = defineStore('task', () => {
 			const updatedTask = await taskService.update(task)
 			kanbanStore.ensureTaskIsInCorrectBucket(updatedTask)
 			lastUpdatedTask.value = updatedTask
+			void refreshNoDueTaskCount()
 			return updatedTask
 		} finally {
 			cancel()
@@ -200,6 +202,7 @@ export const useTaskStore = defineStore('task', () => {
 		const taskService = new TaskService()
 		const response = await taskService.delete(task)
 		kanbanStore.removeTaskInBucket(task)
+		void refreshNoDueTaskCount()
 		return response
 	}
 
@@ -535,6 +538,7 @@ export const useTaskStore = defineStore('task', () => {
 
 			const taskService = new TaskService()
 			const createdTask = await taskService.create(task)
+			void refreshNoDueTaskCount()
 			return await addLabelsToTask({
 				task: createdTask,
 				parsedLabels,
@@ -580,6 +584,7 @@ export const useTaskStore = defineStore('task', () => {
 
 			return {tasks, error: bulkError}
 		} finally {
+			void refreshNoDueTaskCount()
 			cancel()
 		}
 	}
@@ -607,6 +612,7 @@ export const useTaskStore = defineStore('task', () => {
 		try {
 			const taskDuplicateService = new TaskDuplicateService()
 			const response = await taskDuplicateService.create(new TaskDuplicateModel({taskId}))
+			void refreshNoDueTaskCount()
 			return response.duplicatedTask
 		} finally {
 			cancel()

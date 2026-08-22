@@ -53,15 +53,22 @@
 				<span class="menu-item-icon icon">
 					<Icon :icon="['far', 'calendar-times']" />
 				</span>
-				{{ $t('navigation.noDueDate') }}
+				<span class="menu-item-label">{{ $t('navigation.noDueDate') }}</span>
+				<span
+					v-if="noDueTaskCount !== null"
+					class="menu-item-count"
+				>{{ noDueTaskCount }}</span>
 			</RouterLink>
 		</li>
 	</menu>
 </template>
 
 <script setup lang="ts">
+import {onMounted, watch} from 'vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import type {IProject} from '@/modelTypes/IProject'
+import {useNoDueTaskCount} from '@/composables/useNoDueTaskCount'
+import {useAuthStore} from '@/stores/auth'
 
 defineProps<{
 	userDisplayName: string
@@ -71,6 +78,13 @@ defineProps<{
 defineEmits<{
 	addTask: []
 }>()
+
+const authStore = useAuthStore()
+const {noDueTaskCount, refreshNoDueTaskCount} = useNoDueTaskCount()
+
+onMounted(() => refreshNoDueTaskCount())
+
+watch(() => authStore.authenticated, () => refreshNoDueTaskCount())
 </script>
 
 <style lang="scss" scoped>
@@ -116,5 +130,21 @@ defineEmits<{
 	background: var(--primary);
 	color: #ffffff;
 	font-size: 0.75rem;
+}
+
+.menu-item-label {
+	flex: 1;
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.menu-item-count {
+	margin-inline-start: auto;
+	padding-inline-start: 0.5rem;
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: var(--text-muted);
 }
 </style>
