@@ -33,7 +33,7 @@ import (
 	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/web"
 
-	"github.com/disintegration/imaging"
+	"github.com/vtemlabs/imaging"
 	"xorm.io/xorm"
 )
 

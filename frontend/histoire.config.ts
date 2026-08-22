@@ -1,6 +1,5 @@
 import {defineConfig, defaultColors} from 'histoire'
 import {HstVue} from '@histoire/plugin-vue'
-import {HstScreenshot} from '@histoire/plugin-screenshot'
 
 export default defineConfig({
 	setupFile: './src/histoire.setup.ts',
@@ -12,9 +11,6 @@ export default defineConfig({
 	],
 	plugins: [
 		HstVue(),
-		HstScreenshot({
-			// Options here
-		}),
 	],
 	theme: {
 		title: 'Vikunja',

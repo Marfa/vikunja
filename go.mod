@@ -38,7 +38,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/danielgtaylor/huma/v2 v2.39.0
-	github.com/disintegration/imaging v1.6.2
+	github.com/vtemlabs/imaging v1.6.3
 	github.com/dustinkirkland/golang-petname v0.0.0-20240422154211-76c06c4bde6b
 	github.com/fatih/color v1.19.0
 	github.com/gabriel-vasile/mimetype v1.4.15
