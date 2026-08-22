@@ -2,7 +2,9 @@ import {
 	SECONDS_A_DAY,
 	SECONDS_A_HOUR,
 	SECONDS_A_MINUTE,
+	SECONDS_A_MONTH,
 	SECONDS_A_WEEK,
+	SECONDS_A_YEAR,
 } from '@/constants/date'
 
 export type PeriodUnit = 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years'
@@ -12,11 +14,16 @@ export type PeriodUnit = 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'm
  */
 export function secondsToPeriod(seconds: number): { unit: PeriodUnit, amount: number } {
 	if (seconds % SECONDS_A_DAY === 0) {
+		if (seconds % SECONDS_A_YEAR === 0) {
+			return {unit: 'years', amount: seconds / SECONDS_A_YEAR}
+		}
+		if (seconds % SECONDS_A_MONTH === 0) {
+			return {unit: 'months', amount: seconds / SECONDS_A_MONTH}
+		}
 		if (seconds % SECONDS_A_WEEK === 0) {
 			return {unit: 'weeks', amount: seconds / SECONDS_A_WEEK}
-		} else {
-			return {unit: 'days', amount: seconds / SECONDS_A_DAY}
 		}
+		return {unit: 'days', amount: seconds / SECONDS_A_DAY}
 	}
 
 	if (seconds % SECONDS_A_HOUR === 0) {
@@ -45,6 +52,10 @@ export function periodToSeconds(period: number, unit: PeriodUnit): number {
 			return period * SECONDS_A_DAY
 		case 'weeks':
 			return period * SECONDS_A_WEEK
+		case 'months':
+			return period * SECONDS_A_MONTH
+		case 'years':
+			return period * SECONDS_A_YEAR
 	}
 
 	return 0

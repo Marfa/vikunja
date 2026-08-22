@@ -5,7 +5,7 @@ import AttachmentService from './attachment'
 import LabelService from './label'
 
 import {colorFromHex} from '@/helpers/color/colorFromHex'
-import {SECONDS_A_DAY, SECONDS_A_HOUR, SECONDS_A_WEEK} from '@/constants/date'
+import {SECONDS_A_DAY, SECONDS_A_HOUR, SECONDS_A_WEEK, SECONDS_A_YEAR} from '@/constants/date'
 import {objectToSnakeCase} from '@/helpers/case'
 import {apiV2Url, AuthenticatedHTTPFactory} from '@/helpers/fetcher'
 import {translatedError} from '@/message'
@@ -91,6 +91,9 @@ export default class TaskService extends AbstractService<ITask> {
 					break
 				case 'weeks':
 					repeatAfterSeconds = amount * SECONDS_A_WEEK
+					break
+				case 'years':
+					repeatAfterSeconds = amount * SECONDS_A_YEAR
 					break
 			}
 		}

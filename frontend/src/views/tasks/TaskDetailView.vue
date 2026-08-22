@@ -1164,7 +1164,7 @@ async function handleRepeatAfterUpdate(updated: {repeatMode: number, repeatAfter
 	const mode = Number(updated.repeatMode) as typeof TASK_REPEAT_MODES[keyof typeof TASK_REPEAT_MODES]
 	const after = {
 		amount: Number(updated.repeatAfter?.amount) || 0,
-		type: (updated.repeatAfter?.type || 'days') as 'hours' | 'days' | 'weeks',
+		type: (updated.repeatAfter?.type || 'days') as 'hours' | 'days' | 'weeks' | 'years',
 	}
 
 	task.value.repeatMode = mode
