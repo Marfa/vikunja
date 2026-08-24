@@ -131,25 +131,10 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
 	return serveFile(c, reader, info, "")
 }
 
-// sanitizeStaticPath validates and normalizes a URL path for the embedded
-// static file system. Returns ("", false) if the path is unsafe.
-func sanitizeStaticPath(urlPath string) (string, bool) {
-	cleaned := filepath.Clean(filepath.FromSlash("/" + urlPath))
-	name := strings.TrimPrefix(filepath.ToSlash(cleaned), "/")
-	if name == "" {
-		name = "."
-	}
-	if strings.HasPrefix(name, "..") {
-		return "", false
-	}
-	if !fs.ValidPath(name) {
-		return "", false
-	}
-	return name, true
-}
-
 // Copied from echo's middleware.StaticWithConfig simplified and adjusted for caching
 func static() echo.MiddlewareFunc {
+	assetFs := http.FS(distFS)
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) (err error) {
 			p := c.Request().URL.Path
@@ -164,20 +149,24 @@ func static() echo.MiddlewareFunc {
 				return
 			}
 
-			name, ok := sanitizeStaticPath(p)
-			if !ok {
+			// Clean("/"+…) is a CodeQL path-injection sanitizer; IsLocal is a sanitizer guard.
+			name := strings.TrimPrefix(filepath.Clean("/"+p), "/")
+			if name == "" {
+				name = "."
+			}
+			if !filepath.IsLocal(name) {
+				return next(c)
+			}
+			if !fs.ValidPath(name) {
 				return next(c)
 			}
 
-			assetFs := http.FS(distFS)
-			file, err := assetFs.Open(name) //nolint:govet // shadow is intentional
+			file, err := assetFs.Open(name)
 			if err != nil {
 				if !os.IsNotExist(err) {
 					return err
 				}
-				file = nil
-			}
-			if file == nil {
+
 				// file with that path did not exist, so we continue down in middleware/handler chain, hoping that we end up in
 				// handler that is meant to handle this request
 				if err = next(c); err == nil {
@@ -190,7 +179,7 @@ func static() echo.MiddlewareFunc {
 				}
 
 				// Handle all other requests with the index file
-				return serveIndexFile(c, http.FS(distFS))
+				return serveIndexFile(c, assetFs)
 			}
 
 			defer file.Close()
@@ -201,7 +190,7 @@ func static() echo.MiddlewareFunc {
 			}
 
 			if info.IsDir() {
-				return serveIndexFile(c, http.FS(distFS))
+				return serveIndexFile(c, assetFs)
 			}
 
 			etag, err := generateEtag(file, name)
