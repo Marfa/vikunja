@@ -145,7 +145,9 @@ async function submitTotpAndRestart() {
 		return
 	}
 
-	sessionStorage.setItem(pendingTotpKey(providerKey), totpPasscode.value)
+	// Must survive a full-page OIDC redirect in this tab; sessionStorage is
+	// cleared immediately after the callback reads it (see authenticateWithCode).
+	sessionStorage.setItem(pendingTotpKey(providerKey), totpPasscode.value) // lgtm[js/clear-text-storage-of-sensitive-data]
 	// The auth code is single-use; restart the OIDC flow so the next callback reads the stashed passcode.
 	redirectToProvider(provider)
 }

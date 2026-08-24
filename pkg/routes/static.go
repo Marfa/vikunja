@@ -150,6 +150,9 @@ func static() echo.MiddlewareFunc {
 				return
 			}
 			name := strings.TrimPrefix(path.Clean("/"+p), "/")
+			if name != "" && !fs.ValidPath(name) {
+				return next(c)
+			}
 
 			file, err := assetFs.Open(name)
 			if err != nil {

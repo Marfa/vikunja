@@ -72,7 +72,16 @@ const {background, blurHashUrl} = useProjectBackground(() => props.project)
 const projectStore = useProjectStore()
 
 const textOnlyDescription = computed(() => {
-	return props.project.description ? props.project.description.replace(/<[^>]*>/g, '') : ''
+	if (!props.project.description) {
+		return ''
+	}
+	let out = props.project.description
+	let prev = ''
+	while (out !== prev) {
+		prev = out
+		out = out.replace(/<[^>]*>/g, '')
+	}
+	return out
 })
 </script>
 

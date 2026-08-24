@@ -62,7 +62,25 @@ func quoteValidatedTable(table string) (string, error) {
 	if err := validateTableName(table); err != nil {
 		return "", err
 	}
+	for _, n := range RegisteredTableNames() {
+		if n == table {
+			return x.Quote(n), nil
+		}
+	}
 	return x.Quote(table), nil
+}
+
+func clearTable(table string) error {
+	quoted, err := quoteValidatedTable(table)
+	if err != nil {
+		return err
+	}
+	if x.Dialect().URI().DBType == schemas.SQLITE {
+		_, err = x.Exec("DELETE FROM " + quoted)
+		return err
+	}
+	_, err = x.Exec("TRUNCATE TABLE " + quoted)
+	return err
 }
 
 // Dump dumps all Vikunja database tables
@@ -177,18 +195,8 @@ func RestoreAndTruncate(table string, contents []map[string]interface{}) (err er
 		return err
 	}
 
-	if x.Dialect().URI().DBType == schemas.SQLITE {
-		quotedTable, qerr := quoteValidatedTable(table)
-		if qerr != nil {
-			return qerr
-		}
-		if _, err := x.Exec("DELETE FROM " + quotedTable); err != nil {
-			return err
-		}
-	} else {
-		if _, err := x.Query("TRUNCATE TABLE " + x.Quote(table)); err != nil {
-			return err
-		}
+	if err := clearTable(table); err != nil {
+		return err
 	}
 
 	return Restore(table, contents)
@@ -202,18 +210,8 @@ func TruncateAllTables() error {
 			return err
 		}
 
-		if x.Dialect().URI().DBType == schemas.SQLITE {
-			quotedTable, qerr := quoteValidatedTable(name)
-			if qerr != nil {
-				return qerr
-			}
-			if _, err := x.Exec("DELETE FROM " + quotedTable); err != nil {
-				return err
-			}
-		} else {
-			if _, err := x.Query("TRUNCATE TABLE " + x.Quote(name)); err != nil {
-				return err
-			}
+		if err := clearTable(name); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -4,3 +4,6 @@ paths-ignore:
   - "**/frontend/dist/**"
   - "**/vendor/**"
   - "**/.git/**"
+  - "pkg/routes/api/v2/scalar/**"
+  - "desktop/**"
+  - "**/*.standalone.js"
