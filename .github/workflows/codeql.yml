@@ -27,18 +27,38 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [go, javascript-typescript, python, actions]
+        include:
+          - language: go
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: actions
+            build-mode: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4c0873ef8656cb3c50b3f42fb63bc1ade0cfa827 # v4
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           config-file: ./.github/codeql/codeql-config.yml
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@4c0873ef8656cb3c50b3f42fb63bc1ade0cfa827 # v4
+      - name: Build Go
+        if: matrix.language == 'go'
+        run: |
+          mkdir -p frontend/dist
+          touch frontend/dist/index.html
+          go build -o /tmp/vikunja-codeql .
+          go build -C veans -o /tmp/veans-codeql .
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@4c0873ef8656cb3c50b3f42fb63bc1ade0cfa827 # v4

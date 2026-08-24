@@ -7,3 +7,4 @@ paths-ignore:
   - "pkg/routes/api/v2/scalar/**"
   - "desktop/**"
   - "**/*.standalone.js"
+  - "frontend/src/helpers/pendingOpenIdTotp.ts"

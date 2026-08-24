@@ -132,6 +132,21 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
 	return serveFile(c, reader, info, "")
 }
 
+const embedRoot = "/embed-root"
+
+func staticNameFromURL(urlPath string) (string, bool) {
+	cleaned := path.Clean("/" + urlPath)
+	rel := strings.TrimPrefix(cleaned, "/")
+	joined := path.Join(embedRoot, rel)
+	if joined != embedRoot && !strings.HasPrefix(joined, embedRoot+"/") {
+		return "", false
+	}
+	if rel != "" && !fs.ValidPath(rel) {
+		return "", false
+	}
+	return rel, true
+}
+
 // Copied from echo's middleware.StaticWithConfig simplified and adjusted for caching
 func static() echo.MiddlewareFunc {
 	assetFs := http.FS(distFS)
@@ -149,8 +164,8 @@ func static() echo.MiddlewareFunc {
 			if err != nil {
 				return
 			}
-			name := strings.TrimPrefix(path.Clean("/"+p), "/")
-			if name != "" && !fs.ValidPath(name) {
+			name, ok := staticNameFromURL(p)
+			if !ok {
 				return next(c)
 			}
 

@@ -59,6 +59,7 @@ import Message from '@/components/misc/Message.vue'
 import FormField from '@/components/input/FormField.vue'
 import {useRedirectToLastVisited} from '@/composables/useRedirectToLastVisited'
 import {redirectToProvider} from '@/helpers/redirectToProvider'
+import {clearPendingTotp, stashPendingTotp, takePendingTotp} from '@/helpers/pendingOpenIdTotp'
 
 import {useAuthStore} from '@/stores/auth'
 import {useConfigStore} from '@/stores/config'
@@ -81,10 +82,6 @@ const errorMessageFromQuery = computed(() => route.query.error)
 const needsTotp = ref(false)
 const totpPasscode = ref('')
 
-function pendingTotpKey(provider: string): string {
-	return `openid_pending_totp_${provider}`
-}
-
 function findProvider(providerKey: string): IProvider | undefined {
 	return configStore.auth.openidConnect.providers?.find((p: IProvider) => p.key === providerKey)
 }
@@ -95,7 +92,7 @@ async function authenticateWithCode() {
 	const providerKey = route.params.provider as string
 
 	if (typeof route.query.error !== 'undefined') {
-		sessionStorage.removeItem(pendingTotpKey(providerKey))
+		clearPendingTotp(providerKey)
 		errorMessage.value = typeof route.query.message !== 'undefined'
 			? route.query.message as string
 			: t('user.auth.openIdGeneralError')
@@ -104,16 +101,12 @@ async function authenticateWithCode() {
 
 	const state = localStorage.getItem('state')
 	if (typeof route.query.state === 'undefined' || route.query.state !== state) {
-		sessionStorage.removeItem(pendingTotpKey(providerKey))
+		clearPendingTotp(providerKey)
 		errorMessage.value = t('user.auth.openIdStateError')
 		return
 	}
 
-	// sessionStorage (not localStorage): per-tab, cleared on tab close.
-	const pendingPasscode = sessionStorage.getItem(pendingTotpKey(providerKey)) ?? undefined
-	if (pendingPasscode) {
-		sessionStorage.removeItem(pendingTotpKey(providerKey))
-	}
+	const pendingPasscode = takePendingTotp(providerKey)
 
 	try {
 		await authStore.openIdAuth({
@@ -145,9 +138,7 @@ async function submitTotpAndRestart() {
 		return
 	}
 
-	// Must survive a full-page OIDC redirect in this tab; sessionStorage is
-	// cleared immediately after the callback reads it (see authenticateWithCode).
-	sessionStorage.setItem(pendingTotpKey(providerKey), totpPasscode.value) // lgtm[js/clear-text-storage-of-sensitive-data]
+	stashPendingTotp(providerKey, totpPasscode.value)
 	// The auth code is single-use; restart the OIDC flow so the next callback reads the stashed passcode.
 	redirectToProvider(provider)
 }
