@@ -49,7 +49,7 @@ func TestMultiFieldSearchSingleField(t *testing.T) {
 	} else {
 		assert.Contains(t, w.String(), "title")
 		assert.Contains(t, w.String(), "LIKE")
-		assert.Equal(t, []interface{}{"%landing%"}, w.Args())
+		assert.Equal(t, []interface{}{"landing"}, w.Args())
 	}
 }
 
@@ -71,7 +71,7 @@ func TestMultiFieldSearchMultiField(t *testing.T) {
 		assert.Contains(t, w.String(), "title")
 		assert.Contains(t, w.String(), "description")
 		assert.Contains(t, w.String(), "LIKE")
-		assert.Equal(t, []interface{}{"%landing%", "%landing%"}, w.Args())
+		assert.Equal(t, []interface{}{"landing", "landing"}, w.Args())
 	}
 }
 
@@ -92,7 +92,7 @@ func TestMultiFieldSearchWithTableAlias(t *testing.T) {
 	} else {
 		assert.Contains(t, w.String(), "tasks.title")
 		assert.Contains(t, w.String(), "LIKE")
-		assert.Equal(t, []interface{}{"%test%"}, w.Args())
+		assert.Equal(t, []interface{}{"test"}, w.Args())
 	}
 }
 
@@ -114,7 +114,7 @@ func TestMultiFieldSearchMultiFieldWithTableAlias(t *testing.T) {
 		assert.Contains(t, w.String(), "tasks.title")
 		assert.Contains(t, w.String(), "tasks.description")
 		assert.Contains(t, w.String(), "LIKE")
-		assert.Equal(t, []interface{}{"%test%", "%test%"}, w.Args())
+		assert.Equal(t, []interface{}{"test", "test"}, w.Args())
 	}
 }
 

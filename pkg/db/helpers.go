@@ -30,14 +30,13 @@ import (
 // ILIKE is preferred over LOWER(text) LIKE for performance reasons.
 // See https://stackoverflow.com/q/7005302/10924593
 func ILIKE(column, search string) builder.Cond {
-	switch Type() {
-	case schemas.POSTGRES:
+	if Type() == schemas.POSTGRES {
 		return builder.Expr(column+" ILIKE '%' || ? || '%'", search)
-	case schemas.MYSQL:
-		return builder.Expr(column+" LIKE CONCAT('%', ?, '%')", search)
-	default:
-		return builder.Expr(column+" LIKE '%' || ? || '%'", search)
 	}
+	if Type() == schemas.MYSQL {
+		return builder.Expr(column+" LIKE CONCAT('%', ?, '%')", search)
+	}
+	return builder.Expr(column+" LIKE '%' || ? || '%'", search)
 }
 
 func ParadeDBAvailable() bool {
