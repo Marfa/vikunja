@@ -56,3 +56,7 @@ PLAN.md
 plans/
 /.crush/
 /.playwright-mcp
+
+.env
+__pycache__/
+*.pyc
