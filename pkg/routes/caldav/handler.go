@@ -85,7 +85,7 @@ func ProjectHandler(c *echo.Context) error {
 	}
 
 	log.Debugf("[CALDAV] Request Body: %v\n", string(body))
-	log.Debugf("[CALDAV] Request Headers: %v\n", c.Request().Header)
+	log.Debugf("[CALDAV] %s %s", c.Request().Method, c.Request().URL.Path)
 
 	// RFC 6578: intercept sync-collection REPORT before caldav-go sees it.
 	// caldav-go returns 412 (empty body) for unknown REPORT types, which causes
@@ -197,7 +197,7 @@ func PrincipalHandler(c *echo.Context) error {
 	c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
 
 	log.Debugf("[CALDAV] Request Body: %v\n", string(body))
-	log.Debugf("[CALDAV] Request Headers: %v\n", c.Request().Header)
+	log.Debugf("[CALDAV] %s %s", c.Request().Method, c.Request().URL.Path)
 
 	caldav.SetupStorage(storage)
 	setupUser(principalPathForUser(u.Username))
@@ -226,7 +226,7 @@ func EntryHandler(c *echo.Context) error {
 	c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
 
 	log.Debugf("[CALDAV] Request Body: %v\n", string(body))
-	log.Debugf("[CALDAV] Request Headers: %v\n", c.Request().Header)
+	log.Debugf("[CALDAV] %s %s", c.Request().Method, c.Request().URL.Path)
 
 	caldav.SetupStorage(storage)
 	setupUser(principalPathForUser(u.Username))

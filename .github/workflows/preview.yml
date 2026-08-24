@@ -2,12 +2,8 @@ name: Preview
 
 on:
   # pull_request_target gives write access to GHCR even for PRs from forks.
-  # This is safe because:
-  # 1. We explicitly checkout the PR's head commit (no base branch code execution)
-  # 2. We ONLY build a Docker image (isolated container, no workflow scripts from PR)
-  # 3. The github-script step only uses safe PR metadata (number, SHA) — no PR-supplied
-  #    text (title, body, commit messages) is interpolated, so there is no injection risk
-  # 4. Build happens in isolated Docker container with well-defined Dockerfile
+  # PR source is fetched only inside the Docker build (git context URL), not
+  # checked out on the runner — no untrusted workflow script execution.
   pull_request_target:
 
 jobs:
@@ -24,21 +20,6 @@ jobs:
           large-packages: false
           docker-images: false
           swap-storage: false
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # For pull_request_target, we need to explicitly fetch the PR ref from forks
-          # since the PR's commit SHA is not reachable in the base repository.
-          # This is safe because no PR code is executed in workflow context.
-          # Only Docker build uses the PR code (isolated in container).
-          ref: refs/pull/${{ github.event.pull_request.number }}/head
-      - name: Git describe
-        id: ghd
-        uses: proudust/gh-describe@80412be8ce0e77d8afba6b340e34790bc772aa45 # v2.2.0
-        with:
-          # On pull_request_target, github.sha is the base branch head, so the
-          # default ref would describe main instead of the PR commit.
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Login to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -63,13 +44,13 @@ jobs:
       - name: Build and push PR image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: .
+          context: https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git#${{ github.event.pull_request.head.sha }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            RELEASE_VERSION=${{ steps.ghd.outputs.describe }}
+            RELEASE_VERSION=pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
       - name: Comment on PR
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:

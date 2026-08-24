@@ -1,0 +1,6 @@
+name: "Marfa/vikunja CodeQL"
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/frontend/dist/**"
+  - "**/vendor/**"
+  - "**/.git/**"

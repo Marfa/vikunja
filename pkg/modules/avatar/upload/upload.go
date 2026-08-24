@@ -36,6 +36,13 @@ import (
 	"xorm.io/xorm"
 )
 
+func avatarResizeHeight(size int64) (int, error) {
+	if size <= 0 || size > math.MaxInt32 {
+		return 0, fmt.Errorf("invalid avatar size %d", size)
+	}
+	return int(size), nil
+}
+
 func init() {
 	gob.Register(CachedAvatar{})
 }
@@ -59,10 +66,9 @@ type CachedAvatar struct {
 
 // GetAvatar returns an uploaded user avatar
 func (p *Provider) GetAvatar(u *user.User, size int64) (avatar []byte, mimeType string, err error) {
-	// size is converted to int below for imaging.Resize; reject values that
-	// would be negative or overflow on platforms where int is 32 bits.
-	if size <= 0 || size > math.MaxInt32 {
-		return nil, "", fmt.Errorf("invalid avatar size %d", size)
+	height, err := avatarResizeHeight(size)
+	if err != nil {
+		return nil, "", err
 	}
 
 	cacheKey := CacheKeyPrefix + strconv.Itoa(int(u.ID)) + "_" + strconv.FormatInt(size, 10)
@@ -87,7 +93,7 @@ func (p *Provider) GetAvatar(u *user.User, size int64) (avatar []byte, mimeType 
 		if err != nil {
 			return CachedAvatar{}, err
 		}
-		resizedImg := imaging.Resize(img, 0, int(size), imaging.Lanczos)
+		resizedImg := imaging.Resize(img, 0, height, imaging.Lanczos)
 		buf := &bytes.Buffer{}
 		if err := png.Encode(buf, resizedImg); err != nil {
 			return CachedAvatar{}, err

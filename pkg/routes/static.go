@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"net/url"
@@ -41,7 +42,6 @@ import (
 
 const (
 	indexFile               = `index.html`
-	rootPath                = `dist/`
 	cacheControlMax         = `max-age=315360000, public, max-age=31536000, s-maxage=31536000, immutable`
 	cacheControlNone        = `public, max-age=0, s-maxage=0, must-revalidate`
 	configScriptTagTemplate = `
@@ -59,15 +59,21 @@ var etagCache map[string]string
 var etagLock sync.Mutex
 var scriptConfigString string
 var scriptConfigStringLock sync.Mutex
+var distFS fs.FS
 
 func init() {
+	var err error
+	distFS, err = fs.Sub(frontend.Files, "dist")
+	if err != nil {
+		panic("frontend embed must contain dist/: " + err.Error())
+	}
 	etagCache = make(map[string]string)
 	etagLock = sync.Mutex{}
 	scriptConfigStringLock = sync.Mutex{}
 }
 
 func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
-	index, err := assetFs.Open(path.Join(rootPath, indexFile))
+	index, err := assetFs.Open(indexFile)
 	if err != nil {
 		return err
 	}
@@ -128,7 +134,7 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
 
 // Copied from echo's middleware.StaticWithConfig simplified and adjusted for caching
 func static() echo.MiddlewareFunc {
-	assetFs := http.FS(frontend.Files)
+	assetFs := http.FS(distFS)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) (err error) {
@@ -143,7 +149,7 @@ func static() echo.MiddlewareFunc {
 			if err != nil {
 				return
 			}
-			name := path.Join(rootPath, path.Clean("/"+p)) // "/"+ for security
+			name := strings.TrimPrefix(path.Clean("/"+p), "/")
 
 			file, err := assetFs.Open(name)
 			if err != nil {

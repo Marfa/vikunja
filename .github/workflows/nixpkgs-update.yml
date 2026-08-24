@@ -12,6 +12,8 @@ jobs:
       (github.event.release.prerelease == false &&
        startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Install Nix
         uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0

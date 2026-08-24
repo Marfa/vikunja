@@ -18,9 +18,7 @@ package caldav
 
 import (
 	"encoding/xml"
-	"fmt"
 	"net/http"
-	"strings"
 
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/models"
@@ -92,29 +90,38 @@ func handlePropPatch(c *echo.Context, body string, project *models.ProjectWithTa
 }
 
 func writePropPatchResponse(c *echo.Context, props []xml.Name) error {
-	var sb strings.Builder
-	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
-	sb.WriteString(`<D:multistatus xmlns:D="DAV:">` + "\n")
-	sb.WriteString("  <D:response>\n")
-	sb.WriteString("    <D:href>" + xmlEscape(c.Request().URL.Path) + "</D:href>\n")
-	for _, p := range props {
-		sb.WriteString("    <D:propstat>\n")
-		sb.WriteString("      <D:prop>" + propTag(p) + "</D:prop>\n")
-		sb.WriteString("      <D:status>HTTP/1.1 403 Forbidden</D:status>\n")
-		sb.WriteString("    </D:propstat>\n")
+	type prop struct {
+		XMLName xml.Name
 	}
-	sb.WriteString("  </D:response>\n")
-	sb.WriteString("</D:multistatus>\n")
+	type propstat struct {
+		Prop   prop   `xml:"DAV: prop"`
+		Status string `xml:"DAV: status"`
+	}
+	type response struct {
+		Href      string     `xml:"DAV: href"`
+		Propstats []propstat `xml:"DAV: propstat"`
+	}
+	type multistatus struct {
+		XMLName  xml.Name `xml:"DAV: multistatus"`
+		Response response `xml:"DAV: response"`
+	}
+
+	propstats := make([]propstat, len(props))
+	for i, p := range props {
+		propstats[i] = propstat{
+			Prop:   prop{XMLName: p},
+			Status: "HTTP/1.1 403 Forbidden",
+		}
+	}
 
 	c.Response().Header().Set("Content-Type", "application/xml; charset=utf-8")
 	c.Response().WriteHeader(http.StatusMultiStatus)
-	_, err := fmt.Fprint(c.Response(), sb.String())
-	return err
-}
-
-func propTag(name xml.Name) string {
-	if name.Space == "" {
-		return "<" + name.Local + "/>"
-	}
-	return `<` + name.Local + ` xmlns="` + xmlEscape(name.Space) + `"/>`
+	enc := xml.NewEncoder(c.Response())
+	enc.Indent("", "  ")
+	return enc.Encode(multistatus{
+		Response: response{
+			Href:      c.Request().URL.Path,
+			Propstats: propstats,
+		},
+	})
 }
