@@ -58,7 +58,6 @@ jobs:
           mkdir -p frontend/dist
           touch frontend/dist/index.html
           go build -o /tmp/vikunja-codeql .
-          go build -C veans -o /tmp/veans-codeql .
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@4c0873ef8656cb3c50b3f42fb63bc1ade0cfa827 # v4

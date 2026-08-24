@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -132,25 +131,25 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
 	return serveFile(c, reader, info, "")
 }
 
-const embedRoot = "/embed-root"
-
-func staticNameFromURL(urlPath string) (string, bool) {
-	cleaned := path.Clean("/" + urlPath)
-	rel := strings.TrimPrefix(cleaned, "/")
-	joined := path.Join(embedRoot, rel)
-	if joined != embedRoot && !strings.HasPrefix(joined, embedRoot+"/") {
+// sanitizeStaticPath validates and normalizes a URL path for the embedded
+// static file system. Returns ("", false) if the path is unsafe.
+func sanitizeStaticPath(urlPath string) (string, bool) {
+	cleaned := filepath.Clean(filepath.FromSlash("/" + urlPath))
+	name := strings.TrimPrefix(filepath.ToSlash(cleaned), "/")
+	if name == "" {
+		name = "."
+	}
+	if strings.HasPrefix(name, "..") {
 		return "", false
 	}
-	if rel != "" && !fs.ValidPath(rel) {
+	if !fs.ValidPath(name) {
 		return "", false
 	}
-	return rel, true
+	return name, true
 }
 
 // Copied from echo's middleware.StaticWithConfig simplified and adjusted for caching
 func static() echo.MiddlewareFunc {
-	assetFs := http.FS(distFS)
-
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) (err error) {
 			p := c.Request().URL.Path
@@ -164,17 +163,21 @@ func static() echo.MiddlewareFunc {
 			if err != nil {
 				return
 			}
-			name, ok := staticNameFromURL(p)
+
+			name, ok := sanitizeStaticPath(p)
 			if !ok {
 				return next(c)
 			}
 
-			file, err := assetFs.Open(name)
+			assetFs := http.FS(distFS)
+			file, err := assetFs.Open(name) //nolint:govet // shadow is intentional
 			if err != nil {
 				if !os.IsNotExist(err) {
 					return err
 				}
-
+				file = nil
+			}
+			if file == nil {
 				// file with that path did not exist, so we continue down in middleware/handler chain, hoping that we end up in
 				// handler that is meant to handle this request
 				if err = next(c); err == nil {
@@ -187,7 +190,7 @@ func static() echo.MiddlewareFunc {
 				}
 
 				// Handle all other requests with the index file
-				return serveIndexFile(c, assetFs)
+				return serveIndexFile(c, http.FS(distFS))
 			}
 
 			defer file.Close()
@@ -198,7 +201,7 @@ func static() echo.MiddlewareFunc {
 			}
 
 			if info.IsDir() {
-				return serveIndexFile(c, assetFs)
+				return serveIndexFile(c, http.FS(distFS))
 			}
 
 			etag, err := generateEtag(file, name)
