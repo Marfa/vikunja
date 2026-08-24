@@ -48,6 +48,23 @@ function dayLabel(date: dayjs.Dayjs): string {
 	return `${datePart} · ${weekday}`
 }
 
+/** Due date wins; else start date. Only a past due counts as overdue. */
+export function taskGroupingDate(task: ITask): {date: Date, isDue: boolean} | null {
+	if (task.dueDate && +task.dueDate > 0) {
+		const due = resolveDateOnlyDue(task.dueDate)
+		if (!isNaN(+due)) {
+			return {date: due, isDue: true}
+		}
+	}
+	if (task.startDate && +task.startDate > 0) {
+		const start = task.startDate instanceof Date ? task.startDate : new Date(task.startDate)
+		if (!isNaN(+start)) {
+			return {date: start, isDue: false}
+		}
+	}
+	return null
+}
+
 /**
  * Group tasks by due date for Todoist-like lists.
  * When fillRange is set, empty days in [from, to) are included (Upcoming).
@@ -67,20 +84,23 @@ export function groupTasksByDueDay(
 	const overdue: ITask[] = []
 
 	for (const task of tasks) {
-		if (!task.dueDate || +task.dueDate <= 0) {
+		const grouping = taskGroupingDate(task)
+		if (!grouping) {
 			noDate.push(task)
 			continue
 		}
-		const due = dayjs(resolveDateOnlyDue(task.dueDate))
-		if (!due.isValid()) {
+		const day = dayjs(grouping.date)
+		if (!day.isValid()) {
 			noDate.push(task)
 			continue
 		}
-		if (due.isBefore(today, 'day')) {
+		if (grouping.isDue && day.isBefore(today, 'day')) {
 			overdue.push(task)
 			continue
 		}
-		const key = due.format('YYYY-MM-DD')
+		// Start-only tasks that already began belong on today, not overdue / vanished past days.
+		const place = !grouping.isDue && day.isBefore(today, 'day') ? today : day
+		const key = place.format('YYYY-MM-DD')
 		const list = byDay.get(key) ?? []
 		list.push(task)
 		byDay.set(key, list)
