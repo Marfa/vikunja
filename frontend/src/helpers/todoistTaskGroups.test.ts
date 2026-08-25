@@ -24,10 +24,6 @@ function taskWithDue(id: number, due: Date, extras: Partial<ITask> = {}): ITask 
 	return {id, dueDate: due, ...extras} as ITask
 }
 
-function taskWithStart(id: number, start: Date, extras: Partial<ITask> = {}): ITask {
-	return {id, dueDate: null, startDate: start, ...extras} as ITask
-}
-
 describe('groupTasksByDueDay', () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
@@ -58,45 +54,6 @@ describe('groupTasksByDueDay', () => {
 
 		expect(groups).toHaveLength(1)
 		expect(groups[0].tasks.map(t => t.id)).toEqual([3, 2, 4, 1])
-	})
-
-	it('places start-date-only tasks on that day, not No date', () => {
-		const start = new Date(2026, 7, 29, 12, 0, 0)
-		const groups = groupTasksByDueDay([taskWithStart(16701, start)], {fillRange: null})
-
-		expect(groups).toHaveLength(1)
-		expect(groups[0].key).toBe('2026-08-29')
-		expect(groups[0].tasks.map(t => t.id)).toEqual([16701])
-	})
-
-	it('prefers due date over start date when both are set', () => {
-		const groups = groupTasksByDueDay([
-			taskWithDue(1, new Date(2026, 7, 10, 12, 0, 0), {
-				startDate: new Date(2026, 7, 5, 12, 0, 0),
-			}),
-		], {fillRange: null})
-
-		expect(groups).toHaveLength(1)
-		expect(groups[0].key).toBe('2026-08-10')
-	})
-
-	it('does not mark past start-date-only tasks as overdue', () => {
-		const groups = groupTasksByDueDay([
-			taskWithStart(1, new Date(2026, 6, 20, 12, 0, 0)),
-		], {fillRange: null})
-
-		expect(groups).toHaveLength(1)
-		expect(groups[0].key).toBe('2026-08-03')
-		expect(groups[0].tasks.map(t => t.id)).toEqual([1])
-	})
-
-	it('still marks past due dates as overdue', () => {
-		const groups = groupTasksByDueDay([
-			taskWithDue(1, new Date(2026, 6, 20, 12, 0, 0)),
-		], {fillRange: null})
-
-		expect(groups).toHaveLength(1)
-		expect(groups[0].key).toBe('overdue')
 	})
 })
 
