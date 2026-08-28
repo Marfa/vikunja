@@ -395,6 +395,42 @@ func TestTask_Update(t *testing.T) {
 		assert.False(t, updatedTask.Done)
 		assert.False(t, updatedTask.DoneAt.IsZero(), "done_at should be persisted in database for repeating tasks")
 	})
+	t.Run("weekday repeating task keeps repeat_mode when marked done without mode in payload", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		// Task 28 is a default-mode repeater in fixtures; switch it to weekdays
+		// with the same leftover interval the UI used to store (1 day).
+		_, err := s.ID(int64(28)).Cols("repeat_mode", "repeat_after", "due_date").
+			Update(&Task{
+				RepeatMode:  TaskRepeatModeWeekdays,
+				RepeatAfter: 86400,
+				DueDate:     time.Date(2099, 6, 1, 9, 0, 0, 0, time.UTC), // Monday
+			})
+		require.NoError(t, err)
+
+		// Simulate a client that only flips done (repeat_mode JSON-defaults to 0).
+		task := &Task{
+			ID:   28,
+			Done: true,
+		}
+		err = task.Update(s, u)
+		require.NoError(t, err)
+		err = s.Commit()
+		require.NoError(t, err)
+
+		assert.False(t, task.Done)
+		assert.Equal(t, TaskRepeatModeWeekdays, task.RepeatMode)
+		assert.Equal(t, int64(86400), task.RepeatAfter)
+		assert.Equal(t, time.Tuesday, task.DueDate.Weekday())
+
+		stored := &Task{ID: 28}
+		err = stored.ReadOne(s, u)
+		require.NoError(t, err)
+		assert.Equal(t, TaskRepeatModeWeekdays, stored.RepeatMode)
+		assert.Equal(t, int64(86400), stored.RepeatAfter)
+	})
 	t.Run("repeating tasks marked done from a non-default bucket are moved to the default bucket", func(t *testing.T) {
 		db.LoadAndAssertFixtures(t)
 		s := db.NewSession()

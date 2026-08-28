@@ -173,20 +173,19 @@ describe('TaskService.bulkCreate', () => {
 })
 
 describe('TaskService.processModel repeat', () => {
-	it('keeps weekday repeat_mode and converts interval to seconds', () => {
+	it('keeps weekday repeat_mode and sends zero interval', () => {
 		const task = new TaskModel({
 			title: 'weekday',
 			projectId: 1,
 			repeatMode: 3,
-			repeatAfter: {amount: 1, type: 'days'} as unknown as number,
+			repeatAfter: 0,
 		})
-		// Constructor re-parses repeatAfter from a number; set the UI shape after.
-		task.repeatAfter = {amount: 1, type: 'days'}
+		task.repeatAfter = {amount: 0, type: 'days'}
 		task.repeatMode = 3
 
 		const payload = new TaskService().processModel(task) as Record<string, unknown>
 		expect(payload.repeat_mode).toBe(3)
-		expect(payload.repeat_after).toBe(86400)
+		expect(payload.repeat_after).toBe(0)
 	})
 
 	it('converts yearly interval to seconds', () => {

@@ -237,11 +237,6 @@ function updateData() {
 		return
 	}
 
-	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS && (!repeatAfter.amount || repeatAfter.amount < 1)) {
-		repeatAfter.amount = 1
-		repeatAfter.type = 'days'
-	}
-
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS && selectedMonthDays.value.length === 0) {
 		error({message: t('task.repeat.invalidMonthDays')})
 		return
@@ -255,7 +250,8 @@ function handleModeChange(event: Event) {
 	const mode = coerceMode(select.value)
 	repeatMode.value = mode
 	if (mode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS) {
-		repeatAfter.amount = 1
+		// Interval unused (same as monthly); keep 0 so a lost mode cannot become daily.
+		repeatAfter.amount = 0
 		repeatAfter.type = 'days'
 		selectedMonthDays.value = []
 		emitUpdate(mode, repeatAfter, selectedMonthDays.value)
@@ -320,7 +316,7 @@ function toggleMonthDay(day: number) {
 
 function setEveryWeekday() {
 	repeatMode.value = TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS
-	repeatAfter.amount = 1
+	repeatAfter.amount = 0
 	repeatAfter.type = 'days'
 	selectedMonthDays.value = []
 	emitUpdate(repeatMode.value, repeatAfter, selectedMonthDays.value)

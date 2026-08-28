@@ -1530,11 +1530,21 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 
 	preRepeatDueDate, preRepeatStartDate, preRepeatEndDate := t.DueDate, t.StartDate, t.EndDate
 	preRepeatDescription := t.Description
+	markingDone := !ot.Done && t.Done
 
 	// When a repeating task is marked as done, we update all deadlines and reminders and set it as undone
 	updateDoneAt := updateDone(&ot, t)
 	if updateDoneAt {
 		colsToUpdate = append(colsToUpdate, "done_at")
+	}
+
+	// updateDone only reschedules dates; a done-toggle payload often omits or zeroes
+	// repeat_mode (JSON default). Without this, weekday tasks (mode=3) collapse to
+	// default + leftover repeat_after=86400 and start repeating every calendar day.
+	if markingDone && ot.isRepeating() && !t.Done {
+		t.RepeatMode = ot.RepeatMode
+		t.RepeatAfter = ot.RepeatAfter
+		t.RepeatMonthDays = ot.RepeatMonthDays
 	}
 
 	// updateDone reschedules after colsToUpdate was frozen from the caller's field list,

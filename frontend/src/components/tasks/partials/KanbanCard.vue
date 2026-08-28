@@ -115,7 +115,10 @@
 					<Icon icon="align-left" />
 				</span>
 				<span
-					v-if="task.repeatAfter.amount > 0"
+					v-if="task.repeatAfter.amount > 0 ||
+						task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH ||
+						task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH_DAYS ||
+						task.repeatMode === TASK_REPEAT_MODES.REPEAT_MODE_WEEKDAYS"
 					class="icon"
 				>
 					<Icon icon="history" />
