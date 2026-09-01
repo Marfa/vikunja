@@ -27,6 +27,30 @@ test.describe('Task recurrence', () => {
 		expect(body.repeat_after).toBe(86400)
 	})
 
+	test('sets repeat-every-year via preset button', async ({authenticatedPage: page, apiContext, userToken}) => {
+		const [task] = await TaskFactory.create(1, {
+			id: 1,
+			project_id: 1,
+		}, false)
+		await page.goto(`/tasks/${task.id}`)
+
+		await page.getByRole('button', {name: 'Set Repeating Interval'}).click()
+
+		const save = page.waitForResponse(r =>
+			r.url().includes(`/tasks/${task.id}`) && r.request().method() === 'POST',
+		)
+		await page.getByRole('button', {name: 'Every Year'}).click()
+		const r = await save
+		const body = r.request().postDataJSON()
+		expect(body.repeat_after).toBe(365 * 86400)
+
+		const resp = await apiContext.get(`tasks/${task.id}`, {
+			headers: {Authorization: `Bearer ${userToken}`},
+		})
+		expect(resp.ok()).toBe(true)
+		expect((await resp.json()).repeat_after).toBe(365 * 86400)
+	})
+
 	test('completing a recurring task reopens with advanced due date', async ({
 		authenticatedPage: page, apiContext, userToken,
 	}) => {

@@ -32,6 +32,13 @@
 			<XButton
 				variant="secondary"
 				class="is-small preset"
+				@click="() => setRepeatAfter(1, 'years')"
+			>
+				{{ $t('task.repeat.everyYear') }}
+			</XButton>
+			<XButton
+				variant="secondary"
+				class="is-small preset"
 				@click="() => setMonthDays([10, 25])"
 			>
 				{{ $t('task.repeat.every10And20') }}
@@ -107,6 +114,7 @@
 						:placeholder="$t('task.repeat.specifyAmount')"
 						type="number"
 						min="0"
+						@input="updateData"
 						@change="updateData"
 					>
 				</div>

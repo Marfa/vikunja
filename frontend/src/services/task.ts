@@ -5,7 +5,7 @@ import AttachmentService from './attachment'
 import LabelService from './label'
 
 import {colorFromHex} from '@/helpers/color/colorFromHex'
-import {SECONDS_A_DAY, SECONDS_A_HOUR, SECONDS_A_WEEK, SECONDS_A_YEAR} from '@/constants/date'
+import {periodToSeconds} from '@/helpers/time/period'
 import {objectToSnakeCase} from '@/helpers/case'
 import {apiV2Url, AuthenticatedHTTPFactory} from '@/helpers/fetcher'
 import {translatedError} from '@/message'
@@ -82,20 +82,7 @@ export default class TaskService extends AbstractService<ITask> {
 			repeatAfterSeconds = ra
 		} else if (ra && typeof ra === 'object') {
 			const amount = Number(ra.amount) || 0
-			switch (ra.type) {
-				case 'hours':
-					repeatAfterSeconds = amount * SECONDS_A_HOUR
-					break
-				case 'days':
-					repeatAfterSeconds = amount * SECONDS_A_DAY
-					break
-				case 'weeks':
-					repeatAfterSeconds = amount * SECONDS_A_WEEK
-					break
-				case 'years':
-					repeatAfterSeconds = amount * SECONDS_A_YEAR
-					break
-			}
+			repeatAfterSeconds = periodToSeconds(amount, ra.type)
 		}
 		model.repeatAfter = repeatAfterSeconds
 

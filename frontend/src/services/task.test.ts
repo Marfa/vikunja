@@ -199,4 +199,16 @@ describe('TaskService.processModel repeat', () => {
 		const payload = new TaskService().processModel(task) as Record<string, unknown>
 		expect(payload.repeat_after).toBe(365 * 86400)
 	})
+
+	it('converts monthly interval to seconds', () => {
+		const task = new TaskModel({
+			title: 'monthly',
+			projectId: 1,
+			repeatAfter: 0,
+		})
+		task.repeatAfter = {amount: 2, type: 'months'}
+
+		const payload = new TaskService().processModel(task) as Record<string, unknown>
+		expect(payload.repeat_after).toBe(2 * 30 * 86400)
+	})
 })
