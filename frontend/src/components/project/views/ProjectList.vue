@@ -265,7 +265,7 @@ function updateTasks(updatedTask: ITask) {
 }
 
 function removeTask(deletedTask: ITask) {
-	tasks.value = tasks.value.filter(t => t.id !== deletedTask.id)
+	allTasks.value = allTasks.value.filter(t => t.id !== deletedTask.id)
 }
 
 function handleDragStart(e: { item: HTMLElement }) {
@@ -283,7 +283,7 @@ async function saveTaskPosition(e: { originalEvent?: MouseEvent, to: HTMLElement
 
 	// Check if dropped on a sidebar project
 	const {moved} = await handleTaskDropToProject(e, (task) => {
-		tasks.value = tasks.value.filter(t => t.id !== task.id)
+		allTasks.value = allTasks.value.filter(t => t.id !== task.id)
 	})
 
 	if (moved) {
