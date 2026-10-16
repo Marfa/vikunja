@@ -18,3 +18,4 @@ overrides:
   proxy-addr: 2.0.8
   qs: 6.16.0
   '@xmldom/xmldom': 0.8.15
+  http-cache-semantics: 4.3.0
