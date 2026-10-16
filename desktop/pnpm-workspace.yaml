@@ -10,8 +10,11 @@ overrides:
   tmp: 0.2.7
   ip-address: 10.3.1
   form-data: 4.0.6
-  js-yaml: 5.2.2
-  undici@6: 8.9.0
-  undici@7: 8.9.0
-  brace-expansion: 5.0.9
-  fast-uri: 3.1.5
+  js-yaml: 5.4.1
+  undici@6: 8.10.2
+  undici@7: 8.10.2
+  brace-expansion: 5.0.12
+  fast-uri: 3.1.7
+  proxy-addr: 2.0.8
+  qs: 6.16.0
+  '@xmldom/xmldom': 0.8.15

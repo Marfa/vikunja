@@ -1,0 +1,23 @@
+---
+description: Fork workflow — push only to Marfa/vikunja, never upstream Vikunja
+alwaysApply: true
+---
+
+# Marfa/vikunja fork only
+
+This workspace is the **Marfa fork**, not upstream Vikunja.
+
+## Remotes and PRs
+
+- **Allowed remote:** `https://github.com/Marfa/vikunja` (`origin`)
+- Push, PR, and release only against `Marfa/vikunja`
+- **Never** add/push to upstream Vikunja (`go-vikunja/vikunja`, `vikunja/vikunja`, code.vikunja.io, or similar)
+- **Never** open a PR from this fork into upstream Vikunja unless the user explicitly asks for that in the same message
+
+## When the user says "push" / "залей" / "создай PR"
+
+Default target is `Marfa/vikunja`. Do not ask whether to contribute upstream.
+
+## If upstream appears as a remote
+
+Do not push to it. Warn once and use `origin` → Marfa only.

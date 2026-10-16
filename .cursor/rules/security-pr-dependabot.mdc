@@ -1,0 +1,25 @@
+---
+description: On commit — check open PRs, malware alerts, Dependabot; triage and fix
+alwaysApply: true
+---
+
+# Commit checklist: PRs + security
+
+Before every commit (and when the user asks to commit / push / создать PR), check and handle:
+
+1. **Open PRs** — `gh pr list --repo Marfa/vikunja --state open`
+2. **Malware** — https://github.com/Marfa/vikunja/security/malware
+3. **Dependabot** — https://github.com/Marfa/vikunja/security/dependabot (`gh api repos/Marfa/vikunja/dependabot/alerts --jq '.[] | select(.state=="open")'`)
+
+## How to handle
+
+| Finding | Action |
+|---------|--------|
+| Dependabot PR, CI green, mergeable | Merge (`gh pr merge --merge`) |
+| Dependabot PR, CI red / conflicts | Fix on the PR branch or recreate the bump; do not leave it idle |
+| Open Dependabot alert with patched version | Bump package (direct dep) or lockfile / pnpm override (transitive); open/merge a fix PR |
+| Alert with no patched version | Document in the commit/PR body; dismiss only with a real reason (`tolerable_risk` / `inaccurate` / `fix_started`) |
+| Malware alert | Remove/replace the package immediately; never dismiss without remediation |
+| Non-Dependabot open PR | Review status; merge if ready, or report blockers to the user |
+
+Do this for `Marfa/vikunja` only. Report what was merged, fixed, or still open after the check.
