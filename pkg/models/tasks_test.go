@@ -1397,7 +1397,7 @@ func TestUpdateDone(t *testing.T) {
 				updateDone(oldTask, newTask)
 
 				assert.False(t, newTask.Done)
-				diff := newTask.DueDate.Sub(time.Now())
+				diff := time.Until(newTask.DueDate)
 				// ~1 year ahead — must not be the monthly (~30d) shift.
 				assert.Greater(t, diff, 300*24*time.Hour, "yearly from-current should be ~1 year ahead, got %v", diff)
 				assert.Less(t, diff, 400*24*time.Hour, "yearly from-current should be ~1 year ahead, got %v", diff)
