@@ -36,5 +36,7 @@ overrides:
   follow-redirects: 1.16.2
   '@intlify/shared': 11.4.14
   '@vitest/mocker': 4.1.12
+  # histoire → vite-node@3 pulls vite 7.x; keep 7-line patched without jumping to brand-new 8.3.x
+  vite@7: 7.3.7
 publicHoistPattern:
   - '*eslint*'
