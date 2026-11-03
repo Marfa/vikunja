@@ -1313,6 +1313,96 @@ func TestUpdateDone(t *testing.T) {
 				assert.Equal(t, 30, newTask.DueDate.Day())
 			})
 		})
+		t.Run("repeat each year", func(t *testing.T) {
+			loc := config.GetTimeZone()
+			t.Run("due date advances one calendar year not one month", func(t *testing.T) {
+				due := time.Date(2026, time.September, 23, 20, 59, 0, 0, loc)
+				oldTask := &Task{
+					Done:        false,
+					RepeatMode:  TaskRepeatModeDefault,
+					RepeatAfter: SecondsAYear,
+					DueDate:     due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.False(t, newTask.Done)
+				assert.Equal(t, 2027, newTask.DueDate.Year())
+				assert.Equal(t, time.September, newTask.DueDate.Month())
+				assert.Equal(t, 23, newTask.DueDate.Day())
+				assert.Equal(t, due.Hour(), newTask.DueDate.Hour())
+				assert.Equal(t, due.Minute(), newTask.DueDate.Minute())
+			})
+			t.Run("overdue yearly catches up to next year after now", func(t *testing.T) {
+				due := time.Date(2020, time.March, 15, 12, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:        false,
+					RepeatMode:  TaskRepeatModeDefault,
+					RepeatAfter: SecondsAYear,
+					DueDate:     due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.False(t, newTask.Done)
+				assert.True(t, newTask.DueDate.After(time.Now()))
+				assert.Equal(t, time.March, newTask.DueDate.Month())
+				assert.Equal(t, 15, newTask.DueDate.Day())
+				assert.NotEqual(t, time.April, newTask.DueDate.Month(), "yearly must not advance by a month")
+			})
+			t.Run("Feb 29 clamps to Feb 28 in non-leap year", func(t *testing.T) {
+				// Future leap-day due so catch-up does not skip past 2025.
+				due := time.Date(2028, time.February, 29, 9, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:        false,
+					RepeatMode:  TaskRepeatModeDefault,
+					RepeatAfter: SecondsAYear,
+					DueDate:     due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, 2029, newTask.DueDate.Year())
+				assert.Equal(t, time.February, newTask.DueDate.Month())
+				assert.Equal(t, 28, newTask.DueDate.Day())
+			})
+			t.Run("biennial advances two calendar years", func(t *testing.T) {
+				due := time.Date(2026, time.June, 1, 10, 0, 0, 0, loc)
+				oldTask := &Task{
+					Done:        false,
+					RepeatMode:  TaskRepeatModeDefault,
+					RepeatAfter: 2 * SecondsAYear,
+					DueDate:     due,
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.Equal(t, 2028, newTask.DueDate.Year())
+				assert.Equal(t, time.June, newTask.DueDate.Month())
+				assert.Equal(t, 1, newTask.DueDate.Day())
+			})
+			t.Run("from current date uses calendar year", func(t *testing.T) {
+				oldTask := &Task{
+					Done:        false,
+					RepeatMode:  TaskRepeatModeFromCurrentDate,
+					RepeatAfter: SecondsAYear,
+					DueDate:     time.Date(2020, time.January, 1, 0, 0, 0, 0, loc),
+				}
+				newTask := &Task{Done: true}
+
+				updateDone(oldTask, newTask)
+
+				assert.False(t, newTask.Done)
+				diff := newTask.DueDate.Sub(time.Now())
+				// ~1 year ahead — must not be the monthly (~30d) shift.
+				assert.Greater(t, diff, 300*24*time.Hour, "yearly from-current should be ~1 year ahead, got %v", diff)
+				assert.Less(t, diff, 400*24*time.Hour, "yearly from-current should be ~1 year ahead, got %v", diff)
+			})
+		})
 		t.Run("repeat on month days", func(t *testing.T) {
 			loc := config.GetTimeZone()
 			t.Run("10th advances to 20th", func(t *testing.T) {

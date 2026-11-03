@@ -30,6 +30,8 @@ func Test_getRruleFromInterval(t *testing.T) {
 		{"hours", 7200, "HOURLY", 2},
 		{"daily", 86400, "DAILY", 1},
 		{"weekly", 1209600, "WEEKLY", 2},
+		{"yearly", 365 * 86400, "YEARLY", 1},
+		{"biennially", 2 * 365 * 86400, "YEARLY", 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

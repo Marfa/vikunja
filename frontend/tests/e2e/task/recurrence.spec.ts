@@ -85,6 +85,38 @@ test.describe('Task recurrence', () => {
 		expect(newDue - originalDue.getTime()).toBeCloseTo(86_400_000, -4)
 	})
 
+	test('completing a yearly task advances by one calendar year not one month', async ({
+		authenticatedPage: page, apiContext, userToken,
+	}) => {
+		const originalDue = new Date('2026-09-23T20:59:00.000Z')
+		const [task] = await TaskFactory.create(1, {
+			id: 1,
+			project_id: 1,
+			due_date: originalDue.toISOString(),
+			repeat_after: 365 * 86400,
+			repeat_mode: 0,
+		}, false)
+
+		await page.goto(`/tasks/${task.id}`)
+
+		const completed = page.waitForResponse(r =>
+			r.url().includes(`/tasks/${task.id}`) && r.request().method() === 'POST',
+		)
+		await page.locator('.task-view .action-buttons .button').filter({hasText: 'Mark task done!'}).click()
+		await completed
+
+		const resp = await apiContext.get(`tasks/${task.id}`, {
+			headers: {Authorization: `Bearer ${userToken}`},
+		})
+		expect(resp.ok()).toBe(true)
+		const refreshed = await resp.json()
+		expect(refreshed.done).toBe(false)
+		const newDue = new Date(refreshed.due_date)
+		expect(newDue.getUTCFullYear()).toBe(2027)
+		expect(newDue.getUTCMonth()).toBe(8) // September
+		expect(newDue.getUTCDate()).toBe(23)
+	})
+
 	test('monthly repeat mode hides the amount field', async ({authenticatedPage: page}) => {
 		const [task] = await TaskFactory.create(1, {id: 1, project_id: 1}, false)
 		await page.goto(`/tasks/${task.id}`)

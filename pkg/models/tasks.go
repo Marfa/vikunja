@@ -80,10 +80,15 @@ func (d *RepeatMonthDayList) ToDB() ([]byte, error) {
 	return json.Marshal([]int(*d))
 }
 
+// SecondsAYear is the wire-format length of one year in repeat_after
+// (365 days). Calendar advancement still uses AddDate so leap days clamp
+// instead of drifting by a raw duration.
+const SecondsAYear int64 = 365 * 24 * 3600
+
 // MaxTaskRepeatAfterSeconds caps repeat_after at ten years. Sized to
 // stay far from int64 overflow when multiplied out in nanoseconds, and
 // ten years is already well past any legitimate recurrence.
-const MaxTaskRepeatAfterSeconds int64 = 10 * 365 * 24 * 3600
+const MaxTaskRepeatAfterSeconds int64 = 10 * SecondsAYear
 
 func validateRepeatAfter(repeatAfter int64) error {
 	if repeatAfter < 0 || repeatAfter > MaxTaskRepeatAfterSeconds {
@@ -1822,15 +1827,69 @@ func (t *Task) moveTaskToDefaultBuckets(s *xorm.Session, a web.Auth, views []*Pr
 // when possible. If that day does not exist in the target month (e.g. Jan 30 → Feb),
 // it clamps to the last day of the month instead of overflowing into the following one.
 func addOneMonthToDate(d time.Time) time.Time {
+	return addMonthsToDate(d, 1)
+}
+
+// addMonthsToDate advances d by n calendar months with the same day-of-month clamp
+// as addOneMonthToDate (Jan 31 + 1 month → Feb 28/29, not Mar 2/3).
+func addMonthsToDate(d time.Time, months int) time.Time {
+	if months == 0 {
+		return d
+	}
 	loc := config.GetTimeZone()
 	year, month, day := d.Date()
 	// Day 1 avoids Go's date normalization skipping short months (Feb 30 → Mar 2).
-	firstOfNext := time.Date(year, month+1, 1, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
-	lastDay := time.Date(firstOfNext.Year(), firstOfNext.Month()+1, 0, 0, 0, 0, 0, loc).Day()
+	firstOfTarget := time.Date(year, month+time.Month(months), 1, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+	lastDay := time.Date(firstOfTarget.Year(), firstOfTarget.Month()+1, 0, 0, 0, 0, 0, loc).Day()
 	if day > lastDay {
 		day = lastDay
 	}
-	return time.Date(firstOfNext.Year(), firstOfNext.Month(), day, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+	return time.Date(firstOfTarget.Year(), firstOfTarget.Month(), day, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+}
+
+// addYearsToDate advances d by n calendar years, clamping Feb 29 → Feb 28 in
+// non-leap years (Go's AddDate would overflow to Mar 1).
+func addYearsToDate(d time.Time, years int) time.Time {
+	if years == 0 {
+		return d
+	}
+	loc := config.GetTimeZone()
+	year, month, day := d.Date()
+	firstOfTarget := time.Date(year+years, month, 1, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+	lastDay := time.Date(firstOfTarget.Year(), firstOfTarget.Month()+1, 0, 0, 0, 0, 0, loc).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(firstOfTarget.Year(), firstOfTarget.Month(), day, d.Hour(), d.Minute(), d.Second(), d.Nanosecond(), loc)
+}
+
+// yearRepeatCount returns how many whole years repeatAfter encodes, when the
+// interval is an exact multiple of SecondsAYear.
+func yearRepeatCount(repeatAfter int64) (years int, ok bool) {
+	if repeatAfter <= 0 || repeatAfter%SecondsAYear != 0 {
+		return 0, false
+	}
+	return int(repeatAfter / SecondsAYear), true
+}
+
+// addRepeatYearsToTime advances t by whole year-steps until strictly after now,
+// matching addRepeatIntervalToTime's catch-up contract for yearly intervals.
+func addRepeatYearsToTime(now, t time.Time, years int) time.Time {
+	if years <= 0 {
+		return t
+	}
+	if !t.Before(now) {
+		return addYearsToDate(t, years)
+	}
+	// Year steps are cheap; a few thousand iterations covers any realistic due date.
+	next := t
+	for i := 0; i < 10000; i++ {
+		next = addYearsToDate(next, years)
+		if next.After(now) {
+			return next
+		}
+	}
+	return addYearsToDate(now, years)
 }
 
 // addRepeatIntervalToTime advances t by whole multiples of duration until
@@ -1872,6 +1931,33 @@ func setTaskDatesDefault(oldTask, newTask *Task) {
 
 	// Current time in an extra variable to base all calculations on the same time
 	now := time.Now()
+
+	// Yearly intervals use calendar years (same month/day next year), not a
+	// flat 365-day duration — otherwise leap years drift and it is easy to
+	// confuse with the monthly calendar mode.
+	if years, ok := yearRepeatCount(oldTask.RepeatAfter); ok {
+		if !oldTask.DueDate.IsZero() {
+			newTask.DueDate = addRepeatYearsToTime(now, oldTask.DueDate, years)
+		}
+
+		newTask.Reminders = oldTask.Reminders
+		if len(oldTask.Reminders) > 0 {
+			for in, r := range oldTask.Reminders {
+				newTask.Reminders[in].Reminder = addRepeatYearsToTime(now, r.Reminder, years)
+			}
+		}
+
+		if !oldTask.StartDate.IsZero() {
+			newTask.StartDate = addRepeatYearsToTime(now, oldTask.StartDate, years)
+		}
+
+		if !oldTask.EndDate.IsZero() {
+			newTask.EndDate = addRepeatYearsToTime(now, oldTask.EndDate, years)
+		}
+
+		newTask.Done = false
+		return
+	}
 
 	repeatDuration := time.Duration(oldTask.RepeatAfter) * time.Second
 
@@ -2085,11 +2171,16 @@ func setTaskDatesFromCurrentDateRepeat(oldTask, newTask *Task) {
 	// Current time in an extra variable to base all calculations on the same time
 	now := time.Now()
 
-	repeatDuration := time.Duration(oldTask.RepeatAfter) * time.Second
+	advanceFromNow := func() time.Time {
+		if years, ok := yearRepeatCount(oldTask.RepeatAfter); ok {
+			return addYearsToDate(now, years)
+		}
+		return now.Add(time.Duration(oldTask.RepeatAfter) * time.Second)
+	}
 
 	// assuming we'll merge the new task over the old task
 	if !oldTask.DueDate.IsZero() {
-		newTask.DueDate = now.Add(repeatDuration)
+		newTask.DueDate = advanceFromNow()
 	}
 
 	newTask.Reminders = oldTask.Reminders
@@ -2100,9 +2191,10 @@ func setTaskDatesFromCurrentDateRepeat(oldTask, newTask *Task) {
 			return oldTask.Reminders[i].Reminder.Unix() < oldTask.Reminders[j].Reminder.Unix()
 		})
 		first := oldTask.Reminders[0].Reminder
+		base := advanceFromNow()
 		for in, r := range oldTask.Reminders {
 			diff := r.Reminder.Sub(first)
-			newTask.Reminders[in].Reminder = now.Add(repeatDuration + diff)
+			newTask.Reminders[in].Reminder = base.Add(diff)
 		}
 	}
 
@@ -2115,15 +2207,15 @@ func setTaskDatesFromCurrentDateRepeat(oldTask, newTask *Task) {
 		// them as new
 		if !oldTask.StartDate.IsZero() && !oldTask.EndDate.IsZero() {
 			diff := oldTask.EndDate.Sub(oldTask.StartDate)
-			newTask.StartDate = now.Add(repeatDuration)
-			newTask.EndDate = now.Add(repeatDuration + diff)
+			newTask.StartDate = advanceFromNow()
+			newTask.EndDate = newTask.StartDate.Add(diff)
 		} else {
 			if !oldTask.StartDate.IsZero() {
-				newTask.StartDate = now.Add(repeatDuration)
+				newTask.StartDate = advanceFromNow()
 			}
 
 			if !oldTask.EndDate.IsZero() {
-				newTask.EndDate = now.Add(repeatDuration)
+				newTask.EndDate = advanceFromNow()
 			}
 		}
 	} else {

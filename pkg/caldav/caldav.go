@@ -137,9 +137,12 @@ func getRruleFromInterval(interval int64) (freq string, newInterval int64) {
 		hour   = minute * 60
 		day    = hour * 24
 		week   = day * 7
+		year   = day * 365
 	)
 
 	switch {
+	case interval%year == 0:
+		return "YEARLY", interval / year
 	case interval%week == 0:
 		return "WEEKLY", interval / week
 	case interval%day == 0:
